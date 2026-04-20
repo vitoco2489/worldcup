@@ -1,0 +1,270 @@
+from __future__ import annotations
+
+import uuid
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.dependencies import get_admin_user
+from app.models.user import User
+from app.repositories import match_repo
+from app.schemas.admin import (
+    AdminUserRow,
+    CsvRowError,
+    FinishedMatchTable,
+    LockBetsResponse,
+    MatchResultUpdateRequest,
+    MatchResultUpdateResponse,
+    MatchResultsBulkUpdateRequest,
+    MatchResultsBulkUpdateResponse,
+    MatchLoadCsvResponse,
+    MatchLoadItem,
+    MatchLoadResponse,
+    PoolUpdateRequest,
+    ResetAllDataRequest,
+    ResetAllDataResponse,
+    ResetBetsRequest,
+    ResetBetsResponse,
+    ResetMatchesRequest,
+    ResetMatchesResponse,
+    ResetSimulationResponse,
+    ServerTimeResponse,
+    SimulateBetRequest,
+    SimulateMatchRequest,
+    SimulateTimeRequest,
+)
+from app.schemas.bet import BetPublic
+from app.schemas.pool import PoolPublic
+from app.services import (
+    admin_match_service,
+    admin_ops_service,
+    bet_service,
+    clock_service,
+    match_service,
+    pool_service,
+    results_service,
+    simulation_service,
+)
+from app.utils.time import get_current_time
+
+router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get("/users", response_model=list[AdminUserRow])
+def list_users(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    users = db.scalars(select(User).order_by(User.name.asc())).all()
+    return [AdminUserRow(id=u.id, name=u.name, email=u.email) for u in users]
+
+
+@router.post("/load-matches", response_model=MatchLoadResponse)
+def load_matches(
+    body: list[MatchLoadItem],
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    created, skipped = admin_match_service.load_matches_from_payload(db, body)
+    db.commit()
+    return MatchLoadResponse(created=created, skipped=skipped)
+
+
+@router.post("/update-match-result", response_model=MatchResultUpdateResponse)
+def update_match_result(
+    body: MatchResultUpdateRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    match_service.set_result_and_resolve(
+        db,
+        match_id=body.match_id,
+        score_home=body.score_home,
+        score_away=body.score_away,
+    )
+    db.commit()
+    return MatchResultUpdateResponse(match_id=body.match_id, message="Match result saved")
+
+
+@router.post("/update-match-results-bulk", response_model=MatchResultsBulkUpdateResponse)
+def update_match_results_bulk(
+    body: MatchResultsBulkUpdateRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    if not body.updates:
+        raise HTTPException(status_code=400, detail="No updates provided")
+    updated = 0
+    for u in body.updates:
+        match_service.set_result_and_resolve(
+            db,
+            match_id=u.match_id,
+            score_home=u.score_home,
+            score_away=u.score_away,
+        )
+        updated += 1
+    db.commit()
+    return MatchResultsBulkUpdateResponse(updated=updated, message="Bulk match results saved")
+
+
+@router.get("/finished-matches-table", response_model=list[FinishedMatchTable])
+def finished_matches_table(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    rows = results_service.list_finished_match_tables(db)
+    return [FinishedMatchTable(**r) for r in rows]
+
+
+@router.post("/load-matches-csv", response_model=MatchLoadCsvResponse)
+async def load_matches_csv(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+    file: UploadFile = File(...),
+):
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")
+    created, skipped, errors = admin_match_service.load_matches_from_csv_text(db, text)
+    db.commit()
+    return MatchLoadCsvResponse(
+        created=created,
+        skipped=skipped,
+        errors=[CsvRowError(row=e["row"], message=e["message"]) for e in errors],
+    )
+
+
+@router.put("/pool", response_model=PoolPublic)
+def update_pool(
+    body: PoolUpdateRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    admin_ops_service.set_pool_total_usd(db, body.pool_total)
+    db.commit()
+    return pool_service.get_pool(db)
+
+
+@router.post("/simulate-match")
+def simulate_match(
+    body: SimulateMatchRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    admin_ops_service.simulate_match_result(
+        db,
+        match_id=body.match_id,
+        score_home=body.score_home,
+        score_away=body.score_away,
+        status=body.status,
+    )
+    db.commit()
+    return {"ok": True, "match_id": str(body.match_id)}
+
+
+@router.post("/simulate-bet", response_model=BetPublic)
+def simulate_bet(
+    body: SimulateBetRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    bet = simulation_service.simulate_bet_for_user(
+        db,
+        user_id=body.user_id,
+        match_id=body.match_id,
+        score_home=body.score_home,
+        score_away=body.score_away,
+    )
+    m = match_repo.get_by_id(db, bet.match_id)
+    if not m:
+        raise HTTPException(status_code=500, detail="Match missing after simulation")
+    out = bet_service.bet_to_public(bet, m, db=db)
+    db.commit()
+    return out
+
+
+@router.post("/reset-simulation", response_model=ResetSimulationResponse)
+def reset_simulation(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    out = simulation_service.reset_simulation(db)
+    db.commit()
+    return ResetSimulationResponse(**out)
+
+
+@router.post("/simulate-time", response_model=ServerTimeResponse)
+def simulate_time(
+    body: SimulateTimeRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    clock_service.set_simulated_at(db, body.current_time)
+    db.commit()
+    now = get_current_time(db=db)
+    return ServerTimeResponse(now=now, is_simulated=True)
+
+
+@router.post("/reset-time", response_model=ServerTimeResponse)
+def reset_time(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    clock_service.clear_simulated_at(db)
+    db.commit()
+    now = get_current_time(db=db)
+    return ServerTimeResponse(now=now, is_simulated=False)
+
+
+@router.post("/lock-bets/{match_id}", response_model=LockBetsResponse)
+def lock_bets_for_match(
+    match_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    n = admin_ops_service.force_lock_bets_for_match(db, match_id)
+    db.commit()
+    return LockBetsResponse(bets_locked=n)
+
+
+@router.post("/reset-all-data", response_model=ResetAllDataResponse)
+def reset_all_data(
+    body: ResetAllDataRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    if body.confirm != "CONFIRM RESET":
+        raise HTTPException(status_code=400, detail="Confirmation text must be exactly 'CONFIRM RESET'")
+    out = admin_ops_service.reset_all_data(db)
+    db.commit()
+    return ResetAllDataResponse(**out)
+
+
+@router.post("/reset-bets", response_model=ResetBetsResponse)
+def reset_bets(
+    body: ResetBetsRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    if body.confirm != "DELETE BETS":
+        raise HTTPException(status_code=400, detail="Confirmation text must be exactly 'DELETE BETS'")
+    out = admin_ops_service.reset_bets_only(db)
+    db.commit()
+    return ResetBetsResponse(**out)
+
+
+@router.post("/reset-matches", response_model=ResetMatchesResponse)
+def reset_matches(
+    body: ResetMatchesRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    if body.confirm != "DELETE ALL":
+        raise HTTPException(status_code=400, detail="Confirmation text must be exactly 'DELETE ALL'")
+    out = admin_ops_service.reset_matches(db)
+    db.commit()
+    return ResetMatchesResponse(**out)

@@ -1,0 +1,88 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+#
+# App: vitobet — service names must be GLOBALLY unique on Render. If any name is
+# taken, pick a variant before first deploy, e.g. vitobet-web-2026, vitobet-api-cl.
+# Example URLs (after deploy):
+#   Frontend: https://vitobet-web.onrender.com
+#   Backend:  https://vitobet-api.onrender.com
+#
+# After deploy (Dashboard → each service → Environment):
+# - Backend: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, CORS_ORIGINS
+#   CORS_ORIGINS = comma-separated HTTPS origins, NO trailing slash, e.g.
+#   https://vitobet-web.onrender.com,https://www.vitobet.cl
+# - Frontend: NEXT_PUBLIC_GOOGLE_CLIENT_ID (same as backend GOOGLE_CLIENT_ID).
+#   NEXT_PUBLIC_API_URL is wired from the backend service below; override if needed.
+# - Custom domain: add in Render → frontend (and optionally backend) → Custom Domains,
+#   then add that exact origin to CORS_ORIGINS and to Google Cloud "Authorized JavaScript origins".
+#
+# OAuth: This stack uses @react-oauth/google (JWT to API), not NextAuth. Configure
+# Google Cloud Console → Credentials → Web client → Authorized JavaScript origins
+# with every frontend URL you use (Render + custom). No /api/auth/callback/google
+# unless you add NextAuth later.
+#
+# Cron: if CRON_SECRET is not synced from backend, copy the backend CRON_SECRET manually.
+
+databases:
+  - name: vitobet-db
+    databaseName: vitobet
+    user: vitobet
+
+services:
+  - type: web
+    name: vitobet-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vitobet-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+      - key: PRIZE_POOL_LABEL
+        value: Vitobet Pool 2026
+      - key: PRIZE_POOL_AMOUNT_USD
+        value: "—"
+
+  - type: web
+    name: vitobet-web
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: vitobet-api
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        sync: false
+
+  - type: cron
+    name: vitobet-cron
+    schedule: "*/15 * * * *"
+    runtime: node
+    rootDir: .
+    buildCommand: "echo ok"
+    startCommand: node scripts/render-cron.mjs
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: vitobet-api
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: vitobet-api
+          envVarKey: CRON_SECRET
