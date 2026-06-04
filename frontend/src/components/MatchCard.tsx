@@ -277,17 +277,17 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-2">
         {canBet && impliedOutcome ? (
           <button
             type="button"
             disabled={saving}
             onClick={() => void save(impliedOutcome)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`col-span-3 rounded-lg border px-4 py-2.5 text-sm font-semibold transition sm:col-auto ${
               localPrediction === impliedOutcome
-                ? "bg-primary/25 text-primary ring-1 ring-primary/45"
-                : "bg-slate-800 text-slate-200 ring-1 ring-slate-600"
-            } ${saving ? "opacity-50" : "hover:bg-slate-700"}`}
+                ? "cursor-pointer border-primary bg-primary/25 text-primary ring-2 ring-primary/45"
+                : "cursor-pointer border-slate-500 bg-slate-800 text-white ring-1 ring-slate-600/60 hover:border-primary/40 hover:bg-slate-700"
+            } ${saving ? "cursor-not-allowed opacity-50" : "active:scale-[0.98]"}`}
           >
             {saving ? (
               <span className="inline-flex items-center gap-2">
@@ -318,9 +318,11 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
                 type="button"
                 disabled={disabled}
                 onClick={() => void save(p)}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  isSel ? "bg-primary/20 text-primary ring-1 ring-primary/40" : "bg-slate-800 text-slate-200"
-                } ${disabled ? "opacity-50" : "hover:bg-slate-700"}`}
+                className={`min-h-[44px] rounded-lg border px-2 py-2.5 text-sm font-semibold transition sm:px-4 ${
+                  isSel
+                    ? "cursor-pointer border-primary bg-primary/20 text-primary ring-2 ring-primary/50 shadow-[0_0_12px_rgba(34,197,94,0.15)]"
+                    : "cursor-pointer border-slate-500 bg-slate-800/90 text-white ring-1 ring-slate-600/60 shadow-sm hover:border-primary/45 hover:bg-slate-700 hover:text-white"
+                } ${disabled ? "cursor-not-allowed opacity-50" : "active:scale-[0.98]"}`}
               >
                 {saving ? (
                   <span className="inline-flex items-center gap-2">
@@ -335,6 +337,10 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
           })
         ) : null}
       </div>
+
+      {canBet && !impliedOutcome ? (
+        <p className="mt-2 text-center text-xs text-slate-500 sm:text-left">Toca una opción para guardar tu apuesta</p>
+      ) : null}
 
       {canBet && impliedOutcome ? (
         <p className="mt-2 text-xs text-slate-500">

@@ -8,6 +8,7 @@ import type { Bet, CommunityMatchRow, LeaderboardRow, Match, Pool, UserMe } from
 import { apiFetch, fetchMe, getToken, loginWithGoogle, setToken } from "@/lib/api";
 import { useEffectiveNow } from "@/hooks/useEffectiveNow";
 import { defaultUpcomingDayKey, localDateKey } from "@/lib/time";
+import { buildLeaderboardView, rankMarker, rowHighlightClass } from "@/lib/leaderboard";
 import { CommunityBets } from "./CommunityBets";
 import { MatchCard } from "./MatchCard";
 import { MatchDayPicker } from "./MatchDayPicker";
@@ -147,14 +148,10 @@ export function Dashboard() {
     return recent.filter((m) => localDateKey(m.start_time) === selectedDay).length;
   }, [recent, selectedDay]);
 
-  const leaderId = leaderboard[0]?.user_id ?? "none";
-
-  function rankMarker(rank: number): string {
-    if (rank === 1) return "⭐🥇";
-    if (rank === 2) return "🥈";
-    if (rank === 3) return "🥉";
-    return String(rank);
-  }
+  const leaderboardView = useMemo(() => buildLeaderboardView(leaderboard), [leaderboard]);
+  const leaderId = leaderboardView.hasLeader
+    ? (leaderboardView.rows.find((r) => r.displayRank === 1)?.user_id ?? "none")
+    : "no-leader";
 
   if (!token) {
     return (
@@ -286,6 +283,9 @@ export function Dashboard() {
 
         <div className="h-full rounded-xl border border-slate-700 bg-card p-4">
           <h2 className="text-lg font-semibold">Ranking</h2>
+          {!leaderboardView.hasLeader && leaderboardView.rows.length > 0 ? (
+            <p className="mt-1 text-xs text-slate-500">Aún no hay puntos — el podio aparece cuando se resuelvan partidos.</p>
+          ) : null}
           <div className="mt-3 overflow-hidden rounded-lg border border-slate-800">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-900/60 text-slate-400">
@@ -304,25 +304,27 @@ export function Dashboard() {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.25 }}
               >
-                {leaderboard.map((row, i) => (
+                {leaderboardView.rows.map((row) => (
                   <motion.tr
                     layout
                     key={row.user_id}
-                    className={`border-t border-slate-800 transition-colors ${
-                      i === 0
-                        ? "bg-amber-400/10 ring-1 ring-inset ring-amber-300/35"
-                        : i === 1
-                          ? "bg-slate-100/5"
-                          : i === 2
-                            ? "bg-amber-900/10"
-                            : ""
-                    }`}
-                    animate={i === 0 ? { scale: [1, 1.01, 1] } : { scale: 1 }}
+                    className={`border-t border-slate-800 transition-colors ${rowHighlightClass(row.displayRank, leaderboardView.hasLeader)}`}
+                    animate={
+                      leaderboardView.hasLeader && row.displayRank === 1
+                        ? { scale: [1, 1.01, 1] }
+                        : { scale: 1 }
+                    }
                     transition={{ duration: 0.35 }}
                   >
-                    <td className={`px-3 py-2 ${i <= 2 ? "text-white" : "text-slate-500"}`}>{rankMarker(i + 1)}</td>
+                    <td className={`px-3 py-2 ${leaderboardView.hasLeader && row.displayRank <= 3 ? "text-white" : "text-slate-500"}`}>
+                      {rankMarker(row.displayRank, leaderboardView.hasLeader)}
+                    </td>
                     <td className="px-3 py-2 font-medium">{row.name}</td>
-                    <td className={`px-3 py-2 text-right tabular-nums ${i === 0 ? "font-bold text-amber-200" : ""}`}>
+                    <td
+                      className={`px-3 py-2 text-right tabular-nums ${
+                        leaderboardView.hasLeader && row.displayRank === 1 ? "font-bold text-amber-200" : ""
+                      }`}
+                    >
                       {row.total_points}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">{row.correct_bets}</td>
