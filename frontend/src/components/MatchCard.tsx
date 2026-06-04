@@ -19,6 +19,21 @@ import { FootballKick } from "./FootballKick";
 
 const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
 
+function TeamFlag({ code, name }: { code: string; name: string }) {
+  const tbd = code.length > 3 || /^[wl]?\d/i.test(code) || code === "tbd";
+  if (tbd) {
+    return (
+      <span
+        className="flex h-6 w-8 shrink-0 items-center justify-center rounded-sm bg-slate-700 text-[10px] font-bold text-slate-300"
+        title={name}
+      >
+        ?
+      </span>
+    );
+  }
+  return <img src={flagUrl(code)} alt="" className="h-6 w-8 shrink-0 rounded-sm object-cover" />;
+}
+
 type Props = {
   match: Match;
   existingBet?: Bet | null;
@@ -72,11 +87,14 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
   const resolved = existingBet?.resolved === true;
   const correct = existingBet?.correct;
 
+  const teamsPending = match.teams_resolved === false;
+
   const canBet = useMemo(() => {
+    if (teamsPending) return false;
     if (lifecycle !== "scheduled") return false;
     if (existingBet) return existingBet.editable === true;
     return lockSec > 0;
-  }, [existingBet, lifecycle, lockSec]);
+  }, [existingBet, lifecycle, lockSec, teamsPending]);
 
   let border = "border-slate-600";
   if (resolved && correct === true) border = "border-primary ring-1 ring-primary/40";
@@ -198,7 +216,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
         <div className="flex flex-1 flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
-              <img src={flagUrl(match.team_home_code)} alt="" className="h-6 w-8 shrink-0 rounded-sm object-cover" />
+              <TeamFlag code={match.team_home_code} name={match.team_home} />
               <span className="truncate font-semibold">{match.team_home}</span>
             </div>
             {showScores ? (
@@ -210,14 +228,31 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
             )}
             <div className="flex min-w-0 items-center justify-end gap-2">
               <span className="truncate text-right font-semibold">{match.team_away}</span>
-              <img src={flagUrl(match.team_away_code)} alt="" className="h-6 w-8 shrink-0 rounded-sm object-cover" />
+              <TeamFlag code={match.team_away_code} name={match.team_away} />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
             <span>{formatLocal(match.start_time)}</span>
+            {match.round ? (
+              <>
+                <span className="text-slate-500">·</span>
+                <span>{match.round}</span>
+              </>
+            ) : null}
+            {match.group_name ? (
+              <>
+                <span className="text-slate-500">·</span>
+                <span>{match.group_name}</span>
+              </>
+            ) : null}
             <span className="text-slate-500">·</span>
             {lifecycleBadge}
           </div>
+          {teamsPending ? (
+            <p className="text-xs text-amber-300/90">
+              Teams TBD — picks open once group/knockout slots are confirmed.
+            </p>
+          ) : null}
           <div className="text-sm">
             {!resolved && phase === "editable" && lockSec > 0 ? (
               <span className="text-slate-300">

@@ -30,6 +30,7 @@ def list_upcoming(db: Session, *, now: datetime, limit: int = 50) -> list[Match]
                 Match.score_home.is_(None),
                 Match.score_away.is_(None),
                 Match.start_time > now,
+                Match.teams_resolved.is_(True),
             )
             .order_by(Match.start_time.asc())
             .limit(limit)

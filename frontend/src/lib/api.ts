@@ -23,6 +23,20 @@ export type Match = {
   score_home: number | null;
   score_away: number | null;
   status: string;
+  round?: string | null;
+  group_name?: string | null;
+  ground?: string | null;
+  match_number?: number | null;
+  teams_resolved?: boolean;
+};
+
+export type ScheduleLoadResponse = {
+  tournament: string;
+  created: number;
+  skipped: number;
+  bracket_slots_updated: number;
+  error_count: number;
+  errors: string[];
 };
 
 export type Bet = {

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.bet import Bet
 from app.repositories import match_repo
 from app.services.bet_service import resolve_bet, ensure_bet_lock_state
+from app.services import bracket_resolver_service
 from app.utils.time import get_current_time
 
 
@@ -53,11 +54,13 @@ def run_maintenance_job(db: Session) -> dict:
         status_updates = sync_match_statuses(db)
         locked = lock_due_bets(db)
         resolved = resolve_all_pending_bets(db)
+        bracket_updated = bracket_resolver_service.refresh_bracket(db)
         db.commit()
         return {
             "match_status_updates": status_updates,
             "bets_newly_locked": locked,
             "bets_resolved": resolved,
+            "bracket_slots_updated": bracket_updated,
         }
     except Exception:
         db.rollback()

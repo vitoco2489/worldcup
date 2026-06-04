@@ -10,6 +10,7 @@ import type {
   ResetBetsResponse,
   ResetMatchesResponse,
   ResetSimulationResponse,
+  ScheduleLoadResponse,
   ServerTimeResponse,
   UserMe,
 } from "@/lib/api";
@@ -24,7 +25,8 @@ type ActionKey =
   | "reset_sim"
   | "reset_all_data"
   | "reset_bets"
-  | "reset_matches";
+  | "reset_matches"
+  | "load_schedule";
 
 const ADMIN_EMAIL = "vitoco2489@gmail.com";
 
@@ -36,6 +38,8 @@ export default function AdminPage() {
   const [jsonMatches, setJsonMatches] = useState(
     '[{"team_home":"Chile","team_away":"Argentina","team_home_code":"cl","team_away_code":"ar","start_time":"2026-06-10T20:00:00Z"}]',
   );
+  const [scheduleJson, setScheduleJson] = useState("");
+  const [scheduleReplace, setScheduleReplace] = useState(true);
   const [simTimeIso, setSimTimeIso] = useState("2026-06-10T19:57:00Z");
   const [resetConfirmText, setResetConfirmText] = useState("");
   const [deleteBetsConfirmText, setDeleteBetsConfirmText] = useState("");
@@ -80,6 +84,41 @@ export default function AdminPage() {
       toast.success("Pool updated");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not update pool");
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
+  async function loadSchedule() {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(scheduleJson);
+    } catch {
+      toast.error("Invalid schedule JSON.");
+      return;
+    }
+    if (!parsed || typeof parsed !== "object" || !("matches" in parsed)) {
+      toast.error('JSON must be { "name": "...", "matches": [ ... ] }');
+      return;
+    }
+    if (!window.confirm(scheduleReplace ? "Replace ALL matches and bets with this schedule?" : "Import new matches only?")) {
+      return;
+    }
+    setLoadingAction("load_schedule");
+    try {
+      const body = parsed as { name?: string; matches: unknown[] };
+      const r = await apiFetch<ScheduleLoadResponse>("/admin/load-schedule", {
+        method: "POST",
+        body: JSON.stringify({
+          name: body.name ?? "World Cup 2026",
+          matches: body.matches,
+          replace_existing: scheduleReplace,
+        }),
+      });
+      const errNote = r.error_count ? ` (${r.error_count} row errors)` : "";
+      toast.success(`Schedule: ${r.created} created, ${r.skipped} skipped, ${r.bracket_slots_updated} slots filled.${errNote}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not import schedule");
     } finally {
       setLoadingAction(null);
     }
@@ -265,8 +304,37 @@ export default function AdminPage() {
           </Link>
         </section>
 
+        <section className="rounded-xl border border-primary/30 bg-card p-4 space-y-3">
+          <p className="font-semibold text-primary">Import World Cup schedule</p>
+          <p className="text-xs text-slate-400">
+            Paste the full JSON ({`{ "name", "matches": [ team1, team2, date, time, group?, num? ] }`}). Knockout
+            placeholders (1A, W73…) fill automatically when group results and prior games finish.
+          </p>
+          <label className="flex items-center gap-2 text-xs text-slate-300">
+            <input
+              type="checkbox"
+              checked={scheduleReplace}
+              onChange={(e) => setScheduleReplace(e.target.checked)}
+            />
+            Replace existing matches and bets first
+          </label>
+          <textarea
+            className="h-40 w-full rounded-lg border border-slate-600 bg-slate-900 p-2 font-mono text-xs"
+            placeholder='{"name":"World Cup 2026","matches":[...]}'
+            value={scheduleJson}
+            onChange={(e) => setScheduleJson(e.target.value)}
+          />
+          <button
+            disabled={isLoading("load_schedule") || !scheduleJson.trim()}
+            onClick={() => void loadSchedule()}
+            className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-pitch disabled:opacity-60"
+          >
+            {isLoading("load_schedule") ? "Importing…" : "Import schedule"}
+          </button>
+        </section>
+
         <section className="rounded-xl border border-slate-700 bg-card p-4 space-y-3">
-          <p className="font-semibold">Load Matches</p>
+          <p className="font-semibold">Load Matches (simple)</p>
           <textarea
             className="h-28 w-full rounded-lg border border-slate-600 bg-slate-900 p-2 font-mono text-xs"
             value={jsonMatches}

@@ -22,6 +22,8 @@ from app.schemas.admin import (
     MatchLoadCsvResponse,
     MatchLoadItem,
     MatchLoadResponse,
+    ScheduleLoadRequest,
+    ScheduleLoadResponse,
     PoolUpdateRequest,
     ResetAllDataRequest,
     ResetAllDataResponse,
@@ -45,7 +47,9 @@ from app.services import (
     match_service,
     pool_service,
     results_service,
+    schedule_import_service,
     simulation_service,
+    bracket_resolver_service,
 )
 from app.utils.time import get_current_time
 
@@ -59,6 +63,29 @@ def list_users(
 ):
     users = db.scalars(select(User).order_by(User.name.asc())).all()
     return [AdminUserRow(id=u.id, name=u.name, email=u.email) for u in users]
+
+
+@router.post("/load-schedule", response_model=ScheduleLoadResponse)
+def load_schedule(
+    body: ScheduleLoadRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    out = schedule_import_service.load_schedule_payload(
+        db,
+        body.model_dump(),
+        replace_existing=body.replace_existing,
+    )
+    bracket_updated = bracket_resolver_service.refresh_bracket(db)
+    db.commit()
+    return ScheduleLoadResponse(
+        tournament=out["tournament"],
+        created=out["created"],
+        skipped=out["skipped"],
+        bracket_slots_updated=bracket_updated,
+        error_count=out["error_count"],
+        errors=out["errors"][:50],
+    )
 
 
 @router.post("/load-matches", response_model=MatchLoadResponse)

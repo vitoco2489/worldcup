@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,5 +22,10 @@ class Match(Base):
     score_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
     score_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="scheduled", index=True)
+    round: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    group_name: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    ground: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    match_number: Mapped[int | None] = mapped_column(Integer, nullable=True, unique=True, index=True)
+    teams_resolved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     bets: Mapped[list["Bet"]] = relationship("Bet", back_populates="match")

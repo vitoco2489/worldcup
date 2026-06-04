@@ -109,6 +109,11 @@ def create_or_update_bet(
         raise HTTPException(status_code=404, detail="Match not found")
     if not is_bet_editable(match.start_time, now=now):
         raise HTTPException(status_code=400, detail="Betting is locked for this match")
+    if not match.teams_resolved:
+        raise HTTPException(
+            status_code=400,
+            detail="Teams are not confirmed yet for this match (waiting on group/knockout results)",
+        )
     if (predicted_score_home is None) ^ (predicted_score_away is None):
         raise HTTPException(status_code=400, detail="Provide both predicted scores or omit both")
     if predicted_score_home is not None:

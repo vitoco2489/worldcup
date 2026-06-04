@@ -8,15 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models.match import Match
 
-SEED_MATCHES = [
-    {
-        "team_home": "Chile",
-        "team_away": "Argentina",
-        "team_home_code": "cl",
-        "team_away_code": "ar",
-        "start_time": datetime(2026, 6, 10, 20, 0, 0, tzinfo=timezone.utc),
-    },
-]
+SEED_MATCHES: list[dict] = []
 
 
 def seed_matches_if_empty(db: Session) -> int:

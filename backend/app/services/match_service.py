@@ -10,7 +10,7 @@ from app.models.bet import Bet
 from app.models.match import Match
 from app.repositories import bet_repo, match_repo
 from app.schemas.match import MatchPublic
-from app.services import bet_service
+from app.services import bet_service, bracket_resolver_service
 from app.utils.admin import is_admin_email
 from app.utils.time import get_current_time, lock_time_for_match_start
 
@@ -37,6 +37,11 @@ def to_public(match: Match, *, now) -> MatchPublic:
         score_home=match.score_home,
         score_away=match.score_away,
         status=derived_match_status(match, now=now),
+        round=match.round,
+        group_name=match.group_name,
+        ground=match.ground,
+        match_number=match.match_number,
+        teams_resolved=match.teams_resolved,
     )
 
 
@@ -85,6 +90,7 @@ def set_result_and_resolve(
     m.status = "finished"
     for bet in db.scalars(select(Bet).where(Bet.match_id == match_id)).all():
         bet_service.resolve_bet(bet, m)
+    bracket_resolver_service.refresh_bracket(db)
     db.flush()
     return to_public(m, now=get_current_time(db=db))
 

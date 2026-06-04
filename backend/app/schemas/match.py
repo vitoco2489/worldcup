@@ -14,6 +14,11 @@ class MatchPublic(BaseModel):
     score_home: int | None
     score_away: int | None
     status: str
+    round: str | None = None
+    group_name: str | None = None
+    ground: str | None = None
+    match_number: int | None = None
+    teams_resolved: bool = True
 
     model_config = {"from_attributes": True}
 

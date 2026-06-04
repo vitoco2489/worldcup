@@ -17,6 +17,21 @@ class MatchLoadResponse(BaseModel):
     skipped: int
 
 
+class ScheduleLoadRequest(BaseModel):
+    name: str = "World Cup 2026"
+    matches: list[dict]
+    replace_existing: bool = False
+
+
+class ScheduleLoadResponse(BaseModel):
+    tournament: str
+    created: int
+    skipped: int
+    bracket_slots_updated: int = 0
+    error_count: int
+    errors: list[str]
+
+
 class CsvRowError(BaseModel):
     row: int
     message: str

@@ -26,6 +26,11 @@ def _bootstrap_db() -> None:
             Base.metadata.create_all(bind=conn)
             conn.execute(text("ALTER TABLE bets ADD COLUMN IF NOT EXISTS predicted_score_home INTEGER"))
             conn.execute(text("ALTER TABLE bets ADD COLUMN IF NOT EXISTS predicted_score_away INTEGER"))
+            conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS round VARCHAR(64)"))
+            conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS group_name VARCHAR(32)"))
+            conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS ground VARCHAR(128)"))
+            conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS match_number INTEGER"))
+            conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS teams_resolved BOOLEAN DEFAULT TRUE"))
             db = Session(bind=conn, close_resets_only=True)
             try:
                 seed_matches_if_empty(db)
