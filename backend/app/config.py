@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
     cors_origins: str = "http://localhost:3000"
+    public_app_url: str = ""
     cron_secret: str = ""
     admin_emails: str = ""
     prize_pool_label: str = "Friends Pool 2026"
@@ -18,7 +19,15 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        seen: set[str] = set()
+        out: list[str] = []
+        for raw in (self.cors_origins, self.public_app_url):
+            for o in raw.split(","):
+                o = o.strip().rstrip("/")
+                if o and o not in seen:
+                    seen.add(o)
+                    out.append(o)
+        return out
 
     @property
     def admin_email_set(self) -> set[str]:
