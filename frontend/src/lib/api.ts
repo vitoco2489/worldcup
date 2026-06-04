@@ -101,6 +101,44 @@ export type UserStats = {
   exact_score_hits: number;
 };
 
+export type DailyDigest = {
+  date: string;
+  messages: string[];
+};
+
+export type BracketMatchRow = {
+  match: Match;
+  counts: PredictionCounts;
+  popular_prediction: string | null;
+  popular_pct: number;
+  bet_count: number;
+};
+
+export type BracketRound = {
+  round: string;
+  matches: BracketMatchRow[];
+};
+
+export type BracketView = {
+  rounds: BracketRound[];
+};
+
+export type WallEntry = {
+  user_name: string;
+  match_label: string;
+  team_home_code: string;
+  team_away_code: string;
+  predicted_score: string | null;
+  final_score: string | null;
+  points_earned: number;
+  detail: string;
+};
+
+export type WallHighlights = {
+  fame: WallEntry[];
+  shame: WallEntry[];
+};
+
 export type AdminUserRow = {
   id: string;
   name: string;

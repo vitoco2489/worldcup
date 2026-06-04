@@ -12,6 +12,7 @@ import { buildLeaderboardView, rankMarker, rowHighlightClass } from "@/lib/leade
 import { CommunityBets } from "./CommunityBets";
 import { MatchCard } from "./MatchCard";
 import { MatchDayPicker } from "./MatchDayPicker";
+import { DailyMessage } from "./DailyMessage";
 
 export function Dashboard() {
   const { effectiveNowMs, isSimulated, resync } = useEffectiveNow();
@@ -209,6 +210,12 @@ export function Dashboard() {
                     <Link onClick={() => setMenuOpen(false)} href="/matches/results" className="rounded px-2 py-1.5 hover:bg-slate-800">
                       Resultados
                     </Link>
+                    <Link onClick={() => setMenuOpen(false)} href="/bracket" className="rounded px-2 py-1.5 hover:bg-slate-800">
+                      Cuadro
+                    </Link>
+                    <Link onClick={() => setMenuOpen(false)} href="/wall" className="rounded px-2 py-1.5 hover:bg-slate-800">
+                      Muro
+                    </Link>
                     <Link onClick={() => setMenuOpen(false)} href="/profile" className="rounded px-2 py-1.5 hover:bg-slate-800">
                       Perfil
                     </Link>
@@ -340,6 +347,8 @@ export function Dashboard() {
 
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
         <div className="min-w-0 flex-1 space-y-8">
+          {selectedDay ? <DailyMessage dateKey={selectedDay} /> : null}
+
           {recent.length > 0 && selectedDay ? (
             <MatchDayPicker
               dates={matchDays}

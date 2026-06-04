@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import engine, Base
 import app.models  # noqa: F401 — register all ORM tables with Base.metadata
-from app.routers import admin, auth, bets, community, jobs, leaderboard, matches, pool, profile, time_state
+from app.routers import admin, auth, bets, community, jobs, leaderboard, matches, pool, profile, social, time_state
 from app.seed import seed_matches_if_empty
 
 # Serialize DDL across Gunicorn workers (parallel lifespan would race on create_all).
@@ -69,6 +69,7 @@ app.include_router(bets.router)
 app.include_router(leaderboard.router)
 app.include_router(pool.router)
 app.include_router(profile.router)
+app.include_router(social.router)
 app.include_router(jobs.router)
 
 
