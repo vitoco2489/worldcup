@@ -25,13 +25,13 @@ export default function ProfilePage() {
   }, [router]);
 
   useEffect(() => {
-    void load().catch((e) => setErr(e instanceof Error ? e.message : "Failed to load"));
+    void load().catch((e) => setErr(e instanceof Error ? e.message : "Error al cargar"));
   }, [load]);
 
   if (!me || !stats) {
     return (
       <div className="min-h-screen bg-pitch px-4 py-8 text-slate-300">
-        <p>{err ?? "Loading…"}</p>
+        <p>{err ?? "Cargando…"}</p>
       </div>
     );
   }
@@ -39,9 +39,9 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto min-h-screen max-w-2xl bg-pitch px-4 py-8 text-white">
       <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-xl font-bold">Profile</h1>
+        <h1 className="text-xl font-bold">Perfil</h1>
         <Link href="/" className="text-sm text-primary hover:underline">
-          ← Dashboard
+          ← Inicio
         </Link>
       </div>
 
@@ -50,18 +50,18 @@ export default function ProfilePage() {
       </p>
 
       <section className="mb-8 space-y-2 rounded-xl border border-slate-700 bg-card p-4">
-        <h2 className="font-semibold text-slate-200">Your stats</h2>
+        <h2 className="font-semibold text-slate-200">Tus estadísticas</h2>
         <dl className="grid grid-cols-3 gap-2 text-center text-sm">
           <div>
-            <dt className="text-slate-500">Points</dt>
+            <dt className="text-slate-500">Puntos</dt>
             <dd className="text-lg font-bold text-primary">{stats.total_points}</dd>
           </div>
           <div>
-            <dt className="text-slate-500">Correct 1×2</dt>
+            <dt className="text-slate-500">1×2 acertados</dt>
             <dd className="text-lg font-bold">{stats.correct_predictions}</dd>
           </div>
           <div>
-            <dt className="text-slate-500">Exact scores</dt>
+            <dt className="text-slate-500">Marcadores exactos</dt>
             <dd className="text-lg font-bold">{stats.exact_score_hits}</dd>
           </div>
         </dl>

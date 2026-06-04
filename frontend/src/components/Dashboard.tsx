@@ -7,8 +7,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Bet, CommunityMatchRow, LeaderboardRow, Match, Pool, UserMe } from "@/lib/api";
 import { apiFetch, fetchMe, getToken, loginWithGoogle, setToken } from "@/lib/api";
 import { useEffectiveNow } from "@/hooks/useEffectiveNow";
+import { defaultUpcomingDayKey, localDateKey } from "@/lib/time";
 import { CommunityBets } from "./CommunityBets";
 import { MatchCard } from "./MatchCard";
+import { MatchDayPicker } from "./MatchDayPicker";
 
 export function Dashboard() {
   const { effectiveNowMs, isSimulated, resync } = useEffectiveNow();
@@ -23,6 +25,7 @@ export function Dashboard() {
   const [pool, setPool] = useState<Pool | null>(null);
   const [community, setCommunity] = useState<CommunityMatchRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const refreshPublic = useCallback(async () => {
     const [upcomingList, lb, p, comm] = await Promise.all([
@@ -62,7 +65,7 @@ export function Dashboard() {
       await refreshPrivate();
       void resync();
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Failed to load");
+      setLoadError(e instanceof Error ? e.message : "Error al cargar");
     }
   }, [refreshPrivate, refreshPublic, resync]);
 
@@ -109,6 +112,41 @@ export function Dashboard() {
     [community, effectiveNowMs],
   );
 
+  const matchDays = useMemo(() => {
+    const keys = new Set<string>();
+    for (const m of recent) keys.add(localDateKey(m.start_time));
+    return Array.from(keys).sort();
+  }, [recent]);
+
+  useEffect(() => {
+    if (matchDays.length === 0) {
+      setSelectedDay(null);
+      return;
+    }
+    if (selectedDay && matchDays.includes(selectedDay)) return;
+    setSelectedDay(defaultUpcomingDayKey(matchDays, effectiveNowMs));
+  }, [matchDays, selectedDay, effectiveNowMs]);
+
+  const upcomingNoBetDay = useMemo(() => {
+    if (!selectedDay) return upcomingNoBet;
+    return upcomingNoBet.filter((m) => localDateKey(m.start_time) === selectedDay);
+  }, [upcomingNoBet, selectedDay]);
+
+  const myBetCardsDay = useMemo(() => {
+    if (!selectedDay) return myBetCards;
+    return myBetCards.filter(({ match }) => localDateKey(match.start_time) === selectedDay);
+  }, [myBetCards, selectedDay]);
+
+  const communityDay = useMemo(() => {
+    if (!selectedDay) return communityDashboard;
+    return communityDashboard.filter((row) => localDateKey(row.match.start_time) === selectedDay);
+  }, [communityDashboard, selectedDay]);
+
+  const dayMatchCount = useMemo(() => {
+    if (!selectedDay) return recent.length;
+    return recent.filter((m) => localDateKey(m.start_time) === selectedDay).length;
+  }, [recent, selectedDay]);
+
   const leaderId = leaderboard[0]?.user_id ?? "none";
 
   function rankMarker(rank: number): string {
@@ -121,8 +159,8 @@ export function Dashboard() {
   if (!token) {
     return (
       <div className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-4 py-8 text-center">
-        <h1 className="text-3xl font-bold tracking-tight">World Cup Pool</h1>
-        <p className="mt-2 text-sm text-slate-400">Private picks among friends. Sign in to view matches, results, and rankings.</p>
+        <h1 className="text-3xl font-bold tracking-tight">VitoBet — Mundial 2026</h1>
+        <p className="mt-2 text-sm text-slate-400">Polla privada entre amigos. Inicia sesión para ver partidos, resultados y ranking.</p>
         <div className="mt-6">
           <GoogleLogin
             onSuccess={async (cred) => {
@@ -130,7 +168,7 @@ export function Dashboard() {
               await loginWithGoogle(cred.credential);
               setTok(getToken());
             }}
-            onError={() => setLoadError("Google sign-in failed")}
+            onError={() => setLoadError("Error al iniciar sesión con Google")}
             useOneTap={false}
           />
         </div>
@@ -145,10 +183,10 @@ export function Dashboard() {
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-4 py-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">World Cup Pool</h1>
-          <p className="text-sm text-slate-400">Private picks among friends · UTC kickoffs, local times shown</p>
+          <h1 className="text-2xl font-bold tracking-tight">VitoBet — Mundial 2026</h1>
+          <p className="text-sm text-slate-400">Polla privada entre amigos · horarios en hora de Chile (Santiago)</p>
           {isSimulated ? (
-            <p className="mt-1 text-xs font-medium text-amber-400">Admin simulated clock is active — times reflect server test time.</p>
+            <p className="mt-1 text-xs font-medium text-amber-400">Reloj simulado activo — los horarios reflejan la hora de prueba del servidor.</p>
           ) : null}
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
@@ -169,13 +207,13 @@ export function Dashboard() {
                   </div>
                   <div className="flex flex-col p-1 text-sm">
                     <Link onClick={() => setMenuOpen(false)} href="/" className="rounded px-2 py-1.5 hover:bg-slate-800">
-                      Dashboard
+                      Inicio
                     </Link>
                     <Link onClick={() => setMenuOpen(false)} href="/matches/results" className="rounded px-2 py-1.5 hover:bg-slate-800">
-                      Results
+                      Resultados
                     </Link>
                     <Link onClick={() => setMenuOpen(false)} href="/profile" className="rounded px-2 py-1.5 hover:bg-slate-800">
-                      Profile
+                      Perfil
                     </Link>
                     {isHardAdmin ? (
                       <Link onClick={() => setMenuOpen(false)} href="/admin" className="rounded px-2 py-1.5 hover:bg-slate-800">
@@ -191,7 +229,7 @@ export function Dashboard() {
                         setTok(null);
                       }}
                     >
-                      Sign out
+                      Cerrar sesión
                     </button>
                   </div>
                 </div>
@@ -204,7 +242,7 @@ export function Dashboard() {
                 await loginWithGoogle(cred.credential);
                 setTok(getToken());
               }}
-              onError={() => setLoadError("Google sign-in failed")}
+              onError={() => setLoadError("Error al iniciar sesión con Google")}
               useOneTap={false}
             />
           )}
@@ -217,46 +255,46 @@ export function Dashboard() {
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="h-full rounded-xl border border-slate-700 bg-card p-4">
-          <h2 className="text-lg font-semibold text-white">Prize pool</h2>
+          <h2 className="text-lg font-semibold text-white">Premio</h2>
           {pool ? (
             <>
               <p className="mt-2 text-xl font-bold text-primary">{pool.label}</p>
               <p className="mt-1 text-3xl font-extrabold">{pool.prize_display_usd}</p>
               {pool.pool_total_usd > 0 ? (
-                <p className="mt-1 text-xs text-slate-500">Pool total: {pool.pool_total_usd.toLocaleString()} USD</p>
+                <p className="mt-1 text-xs text-slate-500">Total del pozo: {pool.pool_total_usd.toLocaleString("es")} USD</p>
               ) : null}
               <dl className="mt-4 grid grid-cols-3 gap-3 text-center text-sm">
                 <div>
-                  <dt className="text-slate-400">Players</dt>
+                  <dt className="text-slate-400">Jugadores</dt>
                   <dd className="font-semibold">{pool.total_users}</dd>
                 </div>
                 <div>
-                  <dt className="text-slate-400">Bets</dt>
+                  <dt className="text-slate-400">Apuestas</dt>
                   <dd className="font-semibold">{pool.total_bets_placed}</dd>
                 </div>
                 <div>
-                  <dt className="text-slate-400">Points out</dt>
+                  <dt className="text-slate-400">Puntos repartidos</dt>
                   <dd className="font-semibold">{pool.total_points_awarded}</dd>
                 </div>
               </dl>
-              <p className="mt-4 text-xs text-slate-500">Top player wins the pool.</p>
+              <p className="mt-4 text-xs text-slate-500">El primero del ranking se lleva el premio.</p>
             </>
           ) : (
-            <p className="mt-2 text-slate-500">Loading…</p>
+            <p className="mt-2 text-slate-500">Cargando…</p>
           )}
         </div>
 
         <div className="h-full rounded-xl border border-slate-700 bg-card p-4">
-          <h2 className="text-lg font-semibold">Leaderboard</h2>
+          <h2 className="text-lg font-semibold">Ranking</h2>
           <div className="mt-3 overflow-hidden rounded-lg border border-slate-800">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-900/60 text-slate-400">
                 <tr>
                   <th className="px-3 py-2">#</th>
-                  <th className="px-3 py-2">Name</th>
+                  <th className="px-3 py-2">Nombre</th>
                   <th className="px-3 py-2 text-right">Pts</th>
-                  <th className="px-3 py-2 text-right">Correct</th>
-                  <th className="px-3 py-2 text-right">Incorrect</th>
+                  <th className="px-3 py-2 text-right">Aciertos</th>
+                  <th className="px-3 py-2 text-right">Errores</th>
                 </tr>
               </thead>
               <AnimatePresence mode="wait">
@@ -300,25 +338,36 @@ export function Dashboard() {
 
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
         <div className="min-w-0 flex-1 space-y-8">
+          {recent.length > 0 && selectedDay ? (
+            <MatchDayPicker
+              dates={matchDays}
+              selected={selectedDay}
+              onChange={setSelectedDay}
+              matchCount={dayMatchCount}
+            />
+          ) : null}
+
           <section className="space-y-3">
             <h2 className="text-lg font-semibold text-white">
-              Upcoming without bet <span className="text-primary">★</span>
+              Sin apuesta <span className="text-primary">★</span>
             </h2>
             {!token ? (
-              <p className="text-sm text-slate-400">Sign in to see matches you have not picked yet.</p>
+              <p className="text-sm text-slate-400">Inicia sesión para ver partidos sin apostar.</p>
             ) : recent.length === 0 ? (
               <p className="text-sm text-slate-400">
-                No upcoming matches.{" "}
+                No hay partidos próximos.{" "}
                 <Link href="/matches/results" className="text-primary underline hover:text-primary/90">
-                  Check Results
+                  Ver resultados
                 </Link>{" "}
-                to see outcomes.
+                para ver los marcadores.
               </p>
-            ) : upcomingNoBet.length === 0 ? (
-              <p className="text-sm text-slate-400">You are caught up — nice work.</p>
+            ) : dayMatchCount === 0 ? (
+              <p className="text-sm text-slate-400">No hay partidos este día — prueba otra fecha.</p>
+            ) : upcomingNoBetDay.length === 0 ? (
+              <p className="text-sm text-slate-400">Ya apostaste a todos los partidos de este día.</p>
             ) : (
               <div className="flex flex-col gap-3">
-                {upcomingNoBet.map((m) => (
+                {upcomingNoBetDay.map((m) => (
                   <MatchCard key={m.id} match={m} effectiveNowMs={effectiveNowMs} onBetSaved={refreshAll} />
                 ))}
               </div>
@@ -326,21 +375,25 @@ export function Dashboard() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-lg font-semibold">My bets</h2>
+            <h2 className="text-lg font-semibold">Mis apuestas</h2>
             {!token ? (
-              <p className="text-sm text-slate-400">Sign in to track your picks.</p>
+              <p className="text-sm text-slate-400">Inicia sesión para ver tus apuestas.</p>
             ) : myBetCards.length === 0 ? (
               <p className="text-sm text-slate-400">
-                No open picks — add one under{" "}
-                <span className="text-slate-300">Upcoming without bet</span>. Finished picks live in{" "}
+                No tienes apuestas abiertas — agrega una en{" "}
+                <span className="text-slate-300">Sin apuesta</span>. Las finalizadas están en{" "}
                 <Link href="/matches/results" className="text-primary underline hover:text-primary/90">
-                  Results
+                  Resultados
                 </Link>
                 .
               </p>
+            ) : dayMatchCount === 0 ? (
+              <p className="text-sm text-slate-400">No tienes apuestas este día.</p>
+            ) : myBetCardsDay.length === 0 ? (
+              <p className="text-sm text-slate-400">Aún no tienes apuestas este día.</p>
             ) : (
               <div className="flex flex-col gap-3">
-                {myBetCards.map(({ bet, match }) => (
+                {myBetCardsDay.map(({ bet, match }) => (
                   <MatchCard
                     key={bet.id}
                     match={match}
@@ -356,18 +409,19 @@ export function Dashboard() {
 
         <aside className="w-full shrink-0 space-y-3 lg:sticky lg:top-6 lg:w-80 lg:self-start">
           <div className="rounded-xl border border-slate-700 bg-card p-4">
-            <p className="text-sm font-semibold text-white">🏆 Points system</p>
+            <p className="text-sm font-semibold text-white">🏆 Sistema de puntos</p>
             <ul className="mt-2 space-y-1 text-xs text-slate-300">
-              <li>+3 → correct match outcome</li>
-              <li>+2 → exact score</li>
-              <li>Max: 5 points per match</li>
+              <li>+3 → resultado correcto (1×2)</li>
+              <li>+2 → marcador exacto</li>
+              <li>Máximo: 5 puntos por partido</li>
             </ul>
           </div>
-          <h2 className="text-lg font-semibold text-white">Community bets</h2>
+          <h2 className="text-lg font-semibold text-white">Apuestas del grupo</h2>
           <p className="text-xs text-slate-500">
-            Percentages before kickoff; after kickoff, names are shown per side.
+            Porcentajes antes del pitido; después se muestran los nombres por lado.
+            {selectedDay && matchDays.length > 1 ? " Filtrado al día seleccionado." : null}
           </p>
-          <CommunityBets rows={communityDashboard} />
+          <CommunityBets rows={communityDay} />
         </aside>
       </div>
 

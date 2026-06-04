@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import type { CommunityMatchRow, PredictionCounts } from "@/lib/api";
 import { formatLocal } from "@/lib/time";
+import { MatchMetaBadges } from "./MatchMetaBadges";
 
 const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
 
@@ -21,7 +22,6 @@ function percentages(counts: PredictionCounts): { home: number; draw: number; aw
   };
 }
 
-/** Single winner only; ties are not highlighted. */
 function popularKey(counts: PredictionCounts): "home" | "draw" | "away" | null {
   const t = counts.home + counts.draw + counts.away;
   if (t === 0) return null;
@@ -51,7 +51,7 @@ function CommunityBetRow({ row }: RowProps) {
         }`}
       >
         {label}: <span className="font-mono tabular-nums font-semibold">{pctVal}%</span>
-        {isPop ? <span className="ml-2 text-xs text-primary">most picked</span> : null}
+        {isPop ? <span className="ml-2 text-xs text-primary">más elegido</span> : null}
       </motion.li>
     );
   };
@@ -62,53 +62,56 @@ function CommunityBetRow({ row }: RowProps) {
       layout
       className="rounded-xl border border-slate-700 bg-card p-4 transition-shadow duration-300 hover:border-slate-600"
     >
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <img src={flagUrl(row.match.team_home_code)} alt="" className="h-5 w-7 rounded-sm object-cover" />
-        <span className="font-semibold">{row.match.team_home}</span>
-        <span className="text-slate-500">vs</span>
-        <span className="font-semibold">{row.match.team_away}</span>
-        <img src={flagUrl(row.match.team_away_code)} alt="" className="h-5 w-7 rounded-sm object-cover" />
-        <span className="text-xs text-slate-500">· {formatLocal(row.match.start_time)}</span>
+      <div className="mb-3 space-y-2">
+        <MatchMetaBadges groupName={row.match.group_name} round={row.match.round} />
+        <div className="flex flex-wrap items-center gap-2">
+          <img src={flagUrl(row.match.team_home_code)} alt="" className="h-5 w-7 rounded-sm object-cover" />
+          <span className="font-semibold">{row.match.team_home}</span>
+          <span className="text-slate-500">vs</span>
+          <span className="font-semibold">{row.match.team_away}</span>
+          <img src={flagUrl(row.match.team_away_code)} alt="" className="h-5 w-7 rounded-sm object-cover" />
+          <span className="text-xs text-slate-500">· {formatLocal(row.match.start_time)}</span>
+        </div>
       </div>
       <ul className="space-y-1 text-sm">
         {line(
           "home",
           <span className="inline-flex items-center gap-1">
             <img src={flagUrl(row.match.team_home_code)} alt="" className="h-4 w-5 rounded-sm object-cover" />
-            Home
+            Local
           </span>,
           pct.home,
         )}
-        {line("draw", <>Draw</>, pct.draw)}
+        {line("draw", <>Empate</>, pct.draw)}
         {line(
           "away",
           <span className="inline-flex items-center gap-1">
             <img src={flagUrl(row.match.team_away_code)} alt="" className="h-4 w-5 rounded-sm object-cover" />
-            Away
+            Visitante
           </span>,
           pct.away,
         )}
       </ul>
       {row.reveal_individuals && row.individuals ? (
         <div className="mt-3 border-t border-slate-700 pt-3 text-xs text-slate-400">
-          <p className="mb-1 font-medium text-slate-300">After kickoff — who picked what</p>
+          <p className="mb-1 font-medium text-slate-300">Después del pitido — quién eligió qué</p>
           <div className="grid gap-2 sm:grid-cols-3">
             <div>
-              <p className="text-slate-500">Home</p>
+              <p className="text-slate-500">Local</p>
               <p className="text-slate-300">{row.individuals.home?.join(", ") || "—"}</p>
             </div>
             <div>
-              <p className="text-slate-500">Draw</p>
+              <p className="text-slate-500">Empate</p>
               <p className="text-slate-300">{row.individuals.draw?.join(", ") || "—"}</p>
             </div>
             <div>
-              <p className="text-slate-500">Away</p>
+              <p className="text-slate-500">Visitante</p>
               <p className="text-slate-300">{row.individuals.away?.join(", ") || "—"}</p>
             </div>
           </div>
         </div>
       ) : (
-        <p className="mt-3 text-xs text-slate-500">Names stay private until kickoff.</p>
+        <p className="mt-3 text-xs text-slate-500">Los nombres se revelan al iniciar el partido.</p>
       )}
     </motion.div>
   );
@@ -116,7 +119,7 @@ function CommunityBetRow({ row }: RowProps) {
 
 export function CommunityBets({ rows }: Props) {
   if (rows.length === 0) {
-    return <p className="text-sm text-slate-400">No picks yet — counts appear once someone bets.</p>;
+    return <p className="text-sm text-slate-400">Aún no hay apuestas — los porcentajes aparecen cuando alguien juegue.</p>;
   }
 
   return (

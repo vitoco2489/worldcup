@@ -6,7 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { FinishedMatchTable } from "@/lib/api";
 import { apiFetch, getToken } from "@/lib/api";
-import { formatLocal } from "@/lib/time";
+import { formatLocal, localDateKey } from "@/lib/time";
+import { formatPrediction } from "@/lib/i18n";
 
 type FlatRow = {
   match_id: string;
@@ -43,7 +44,7 @@ export default function MatchResultsPage() {
       .then((data) => {
         setRows(data);
       })
-      .catch((e) => toast.error(e instanceof Error ? e.message : "Failed to load results"))
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Error al cargar resultados"))
       .finally(() => setLoading(false));
   }, [router]);
 
@@ -86,46 +87,44 @@ export default function MatchResultsPage() {
       if (userFilter !== "all" && r.user_name !== userFilter) return false;
       if (matchFilter !== "all" && r.match_id !== matchFilter) return false;
       if (dateFilter) {
-        const d = new Date(r.start_time);
-        const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        if (ymd !== dateFilter) return false;
+        if (localDateKey(r.start_time) !== dateFilter) return false;
       }
       return true;
     });
   }, [flatRows, userFilter, matchFilter, dateFilter]);
 
   if (loading) {
-    return <div className="min-h-screen bg-pitch px-4 py-8 text-slate-300">Loading results…</div>;
+    return <div className="min-h-screen bg-pitch px-4 py-8 text-slate-300">Cargando resultados…</div>;
   }
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl bg-pitch px-4 py-8 text-white">
       <div className="mb-4 flex items-center gap-3 text-xs text-slate-400">
         <Link href="/" className="hover:text-slate-200">
-          Dashboard
+          Inicio
         </Link>
         <span>›</span>
-        <span className="text-slate-200">Results</span>
+        <span className="text-slate-200">Resultados</span>
       </div>
 
       <header className="mb-5">
-        <h1 className="text-2xl font-bold">Results</h1>
-        <p className="text-sm text-slate-400">Unified results table across matches and users.</p>
+        <h1 className="text-2xl font-bold">Resultados</h1>
+        <p className="text-sm text-slate-400">Tabla de resultados por partido y jugador.</p>
       </header>
 
       {!hasRows ? (
-        <p className="text-sm text-slate-400">No finished matches yet.</p>
+        <p className="text-sm text-slate-400">Aún no hay partidos finalizados.</p>
       ) : (
         <div className="space-y-3">
           <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-700 bg-card p-3">
             <label className="flex flex-col gap-1 text-xs text-slate-400">
-              User
+              Usuario
               <select
                 value={userFilter}
                 onChange={(e) => setUserFilter(e.target.value)}
                 className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
               >
-                <option value="all">All users</option>
+                <option value="all">Todos</option>
                 {uniqueUsers.map((u) => (
                   <option key={u} value={u}>
                     {u}
@@ -134,13 +133,13 @@ export default function MatchResultsPage() {
               </select>
             </label>
             <label className="flex flex-col gap-1 text-xs text-slate-400">
-              Match
+              Partido
               <select
                 value={matchFilter}
                 onChange={(e) => setMatchFilter(e.target.value)}
                 className="max-w-xs rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
               >
-                <option value="all">All matches</option>
+                <option value="all">Todos</option>
                 {uniqueMatches.map((m) => {
                   const [id, label] = m.split("::");
                   return (
@@ -152,7 +151,7 @@ export default function MatchResultsPage() {
               </select>
             </label>
             <label className="flex flex-col gap-1 text-xs text-slate-400">
-              Date
+              Fecha
               <input
                 type="date"
                 value={dateFilter}
@@ -169,7 +168,7 @@ export default function MatchResultsPage() {
               }}
               className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-slate-200"
             >
-              Clear
+              Limpiar
             </button>
           </div>
 
@@ -177,13 +176,13 @@ export default function MatchResultsPage() {
             <table className="w-full min-w-[980px] text-left text-xs">
               <thead className="sticky top-0 bg-slate-900 text-slate-400">
                 <tr>
-                  <th className="px-2 py-2">Match</th>
-                  <th className="px-2 py-2">User</th>
-                  <th className="px-2 py-2">Prediction</th>
-                  <th className="px-2 py-2">Predicted score</th>
-                  <th className="px-2 py-2">Final score</th>
-                  <th className="px-2 py-2">Result</th>
-                  <th className="px-2 py-2 text-right">Points</th>
+                  <th className="px-2 py-2">Partido</th>
+                  <th className="px-2 py-2">Usuario</th>
+                  <th className="px-2 py-2">Predicción</th>
+                  <th className="px-2 py-2">Marcador predicho</th>
+                  <th className="px-2 py-2">Marcador final</th>
+                  <th className="px-2 py-2">Resultado</th>
+                  <th className="px-2 py-2 text-right">Puntos</th>
                 </tr>
               </thead>
               <tbody>
@@ -206,7 +205,7 @@ export default function MatchResultsPage() {
                         </div>
                       </td>
                       <td className="px-2 py-1.5">{r.user_name}</td>
-                      <td className="px-2 py-1.5">{r.predicted_outcome ?? "—"}</td>
+                      <td className="px-2 py-1.5">{formatPrediction(r.predicted_outcome)}</td>
                       <td className="px-2 py-1.5 font-mono">{r.predicted_score ?? "—"}</td>
                       <td className="px-2 py-1.5 font-mono tabular-nums text-slate-200">{r.final_score}</td>
                       <td className={`px-2 py-1.5 ${indicatorClass}`}>{icon}</td>

@@ -66,7 +66,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     void load().catch((e) => {
-      toast.error(e instanceof Error ? e.message : "Failed to load admin page");
+      toast.error(e instanceof Error ? e.message : "Error al cargar el panel de admin");
       router.replace("/");
     });
   }, [load, router]);
@@ -74,16 +74,16 @@ export default function AdminPage() {
   async function savePool() {
     const n = parseInt(poolInput, 10);
     if (Number.isNaN(n) || n < 0) {
-      toast.error("Pool total must be a non-negative integer.");
+      toast.error("El total del pozo debe ser un entero no negativo.");
       return;
     }
     setLoadingAction("save_pool");
     try {
       const p = await apiFetch<Pool>("/admin/pool", { method: "PUT", body: JSON.stringify({ pool_total: n }) });
       setPool(p);
-      toast.success("Pool updated");
+      toast.success("Pozo actualizado");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not update pool");
+      toast.error(e instanceof Error ? e.message : "No se pudo actualizar el pozo");
     } finally {
       setLoadingAction(null);
     }
@@ -94,14 +94,14 @@ export default function AdminPage() {
     try {
       parsed = JSON.parse(scheduleJson);
     } catch {
-      toast.error("Invalid schedule JSON.");
+      toast.error("JSON del calendario inválido.");
       return;
     }
     if (!parsed || typeof parsed !== "object" || !("matches" in parsed)) {
-      toast.error('JSON must be { "name": "...", "matches": [ ... ] }');
+      toast.error('El JSON debe ser { "name": "...", "matches": [ ... ] }');
       return;
     }
-    if (!window.confirm(scheduleReplace ? "Replace ALL matches and bets with this schedule?" : "Import new matches only?")) {
+    if (!window.confirm(scheduleReplace ? "¿Reemplazar TODOS los partidos y apuestas con este calendario?" : "¿Importar solo partidos nuevos?")) {
       return;
     }
     setLoadingAction("load_schedule");
@@ -115,10 +115,10 @@ export default function AdminPage() {
           replace_existing: scheduleReplace,
         }),
       });
-      const errNote = r.error_count ? ` (${r.error_count} row errors)` : "";
-      toast.success(`Schedule: ${r.created} created, ${r.skipped} skipped, ${r.bracket_slots_updated} slots filled.${errNote}`);
+      const errNote = r.error_count ? ` (${r.error_count} filas con error)` : "";
+      toast.success(`Calendario: ${r.created} creados, ${r.skipped} omitidos, ${r.bracket_slots_updated} cupos actualizados.${errNote}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not import schedule");
+      toast.error(e instanceof Error ? e.message : "No se pudo importar el calendario");
     } finally {
       setLoadingAction(null);
     }
@@ -129,11 +129,11 @@ export default function AdminPage() {
     try {
       parsed = JSON.parse(jsonMatches);
     } catch {
-      toast.error("Invalid JSON.");
+      toast.error("JSON inválido.");
       return;
     }
     if (!Array.isArray(parsed)) {
-      toast.error("Body must be a JSON array of matches.");
+      toast.error("El cuerpo debe ser un arreglo JSON de partidos.");
       return;
     }
     setLoadingAction("load_json");
@@ -142,9 +142,9 @@ export default function AdminPage() {
         method: "POST",
         body: JSON.stringify(parsed),
       });
-      toast.success(`Matches loaded: ${res.created} created, ${res.skipped} skipped.`);
+      toast.success(`Partidos cargados: ${res.created} creados, ${res.skipped} omitidos.`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not load matches");
+      toast.error(e instanceof Error ? e.message : "No se pudieron cargar los partidos");
     } finally {
       setLoadingAction(null);
     }
@@ -160,10 +160,10 @@ export default function AdminPage() {
         "/admin/load-matches-csv",
         form,
       );
-      const emsg = res.errors.length ? ` Errors: ${res.errors.map((e) => `row ${e.row}: ${e.message}`).join("; ")}` : "";
-      toast.success(`CSV loaded: ${res.created} created, ${res.skipped} skipped.${emsg}`);
+      const emsg = res.errors.length ? ` Errores: ${res.errors.map((e) => `fila ${e.row}: ${e.message}`).join("; ")}` : "";
+      toast.success(`CSV cargado: ${res.created} creados, ${res.skipped} omitidos.${emsg}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not load CSV");
+      toast.error(e instanceof Error ? e.message : "No se pudo cargar el CSV");
     } finally {
       setLoadingAction(null);
     }
@@ -172,7 +172,7 @@ export default function AdminPage() {
   async function setSimulatedClock() {
     const raw = simTimeIso.trim();
     if (!raw) {
-      toast.error("Set an ISO time first.");
+      toast.error("Ingresa una hora ISO primero.");
       return;
     }
     setLoadingAction("simulate_time");
@@ -181,9 +181,9 @@ export default function AdminPage() {
         method: "POST",
         body: JSON.stringify({ current_time: raw }),
       });
-      toast.success(`Simulated clock set: ${r.now}`);
+      toast.success(`Reloj simulado: ${r.now}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not set simulated time");
+      toast.error(e instanceof Error ? e.message : "No se pudo configurar el reloj simulado");
     } finally {
       setLoadingAction(null);
     }
@@ -193,9 +193,9 @@ export default function AdminPage() {
     setLoadingAction("reset_time");
     try {
       const r = await apiFetch<ServerTimeResponse>("/admin/reset-time", { method: "POST", body: JSON.stringify({}) });
-      toast.success(`Clock reset: ${r.now}`);
+      toast.success(`Reloj restablecido: ${r.now}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not reset time");
+      toast.error(e instanceof Error ? e.message : "No se pudo restablecer el reloj");
     } finally {
       setLoadingAction(null);
     }
@@ -205,9 +205,9 @@ export default function AdminPage() {
     setLoadingAction("reset_sim");
     try {
       const r = await apiFetch<ResetSimulationResponse>("/admin/reset-simulation", { method: "POST", body: JSON.stringify({}) });
-      toast.success(`Simulation reset: ${r.bets_deleted_new} deleted, ${r.bets_restored} restored.`);
+      toast.success(`Simulación reiniciada: ${r.bets_deleted_new} eliminadas, ${r.bets_restored} restauradas.`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not reset simulation");
+      toast.error(e instanceof Error ? e.message : "No se pudo reiniciar la simulación");
     } finally {
       setLoadingAction(null);
     }
@@ -215,20 +215,20 @@ export default function AdminPage() {
 
   async function resetAllData() {
     if (resetConfirmText.trim() !== "CONFIRM RESET") {
-      toast.error("Type CONFIRM RESET to continue");
+      toast.error("Escribe CONFIRM RESET para continuar");
       return;
     }
-    if (!window.confirm("Delete all bets and reset all matches?")) return;
+    if (!window.confirm("¿Eliminar todas las apuestas y resetear todos los partidos?")) return;
     setLoadingAction("reset_all_data");
     try {
       const r = await apiFetch<ResetAllDataResponse>("/admin/reset-all-data", {
         method: "POST",
         body: JSON.stringify({ confirm: "CONFIRM RESET" }),
       });
-      toast.success(`All data reset: ${r.bets_deleted} bets deleted, ${r.matches_reset} matches reset.`);
+      toast.success(`Datos reseteados: ${r.bets_deleted} apuestas eliminadas, ${r.matches_reset} partidos reseteados.`);
       setResetConfirmText("");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not reset all data");
+      toast.error(e instanceof Error ? e.message : "No se pudieron resetear los datos");
     } finally {
       setLoadingAction(null);
     }
@@ -236,20 +236,20 @@ export default function AdminPage() {
 
   async function resetBetsOnly() {
     if (deleteBetsConfirmText.trim() !== "DELETE BETS") {
-      toast.error("Type DELETE BETS to continue");
+      toast.error("Escribe DELETE BETS para continuar");
       return;
     }
-    if (!window.confirm("Delete all bets?")) return;
+    if (!window.confirm("¿Eliminar todas las apuestas?")) return;
     setLoadingAction("reset_bets");
     try {
       const r = await apiFetch<ResetBetsResponse>("/admin/reset-bets", {
         method: "POST",
         body: JSON.stringify({ confirm: "DELETE BETS" }),
       });
-      toast.success(`Bets deleted: ${r.bets_deleted}`);
+      toast.success(`Apuestas eliminadas: ${r.bets_deleted}`);
       setDeleteBetsConfirmText("");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not delete bets");
+      toast.error(e instanceof Error ? e.message : "No se pudieron eliminar las apuestas");
     } finally {
       setLoadingAction(null);
     }
@@ -257,58 +257,58 @@ export default function AdminPage() {
 
   async function resetMatchesAndBets() {
     if (deleteAllConfirmText.trim() !== "DELETE ALL") {
-      toast.error("Type DELETE ALL to continue");
+      toast.error("Escribe DELETE ALL para continuar");
       return;
     }
-    if (!window.confirm("Delete ALL matches and bets? This cannot be undone.")) return;
+    if (!window.confirm("¿Eliminar TODOS los partidos y apuestas? Esto no se puede deshacer.")) return;
     setLoadingAction("reset_matches");
     try {
       const r = await apiFetch<ResetMatchesResponse>("/admin/reset-matches", {
         method: "POST",
         body: JSON.stringify({ confirm: "DELETE ALL" }),
       });
-      toast.success(`Deleted: ${r.matches_deleted} matches, ${r.bets_deleted} bets`);
+      toast.success(`Eliminados: ${r.matches_deleted} partidos, ${r.bets_deleted} apuestas`);
       setDeleteAllConfirmText("");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not delete matches");
+      toast.error(e instanceof Error ? e.message : "No se pudieron eliminar los partidos");
     } finally {
       setLoadingAction(null);
     }
   }
 
   if (!me) {
-    return <div className="min-h-screen bg-pitch px-4 py-8 text-slate-300">Loading…</div>;
+    return <div className="min-h-screen bg-pitch px-4 py-8 text-slate-300">Cargando…</div>;
   }
 
   return (
     <div className="mx-auto min-h-screen max-w-4xl bg-pitch px-4 py-8 text-white">
       <div className="mb-4 flex items-center gap-3 text-xs text-slate-400">
         <Link href="/" className="hover:text-slate-200">
-          Dashboard
+          Inicio
         </Link>
         <span>›</span>
         <span className="text-slate-200">Admin</span>
       </div>
 
       <header className="mb-6">
-        <h1 className="text-2xl font-bold">Admin Panel</h1>
-        <p className="text-sm text-slate-400">Centralized admin tools.</p>
+        <h1 className="text-2xl font-bold">Panel de administración</h1>
+        <p className="text-sm text-slate-400">Herramientas centralizadas de admin.</p>
       </header>
 
       <div className="space-y-6">
         <section className="rounded-xl border border-primary/30 bg-card/50 p-4">
-          <p className="text-base font-semibold text-primary">Match Manager</p>
-          <p className="mt-1 text-sm text-slate-400">Manage scores and statuses on the dedicated page.</p>
+          <p className="text-base font-semibold text-primary">Gestor de partidos</p>
+          <p className="mt-1 text-sm text-slate-400">Administra marcadores y estados en la página dedicada.</p>
           <Link href="/admin/matches" className="mt-3 inline-flex rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-pitch">
-            Open Match Manager
+            Abrir gestor de partidos
           </Link>
         </section>
 
         <section className="rounded-xl border border-primary/30 bg-card p-4 space-y-3">
-          <p className="font-semibold text-primary">Import World Cup schedule</p>
+          <p className="font-semibold text-primary">Importar calendario del Mundial</p>
           <p className="text-xs text-slate-400">
-            Paste the full JSON ({`{ "name", "matches": [ team1, team2, date, time, group?, num? ] }`}). Knockout
-            placeholders (1A, W73…) fill automatically when group results and prior games finish.
+            Pega el JSON completo ({`{ "name", "matches": [ team1, team2, date, time, group?, num? ] }`}). Los
+            placeholders de eliminatoria (1A, W73…) se completan solos cuando terminen los grupos y partidos previos.
           </p>
           <label className="flex items-center gap-2 text-xs text-slate-300">
             <input
@@ -316,7 +316,7 @@ export default function AdminPage() {
               checked={scheduleReplace}
               onChange={(e) => setScheduleReplace(e.target.checked)}
             />
-            Replace existing matches and bets first
+            Reemplazar partidos y apuestas existentes primero
           </label>
           <textarea
             className="h-40 w-full rounded-lg border border-slate-600 bg-slate-900 p-2 font-mono text-xs"
@@ -329,12 +329,12 @@ export default function AdminPage() {
             onClick={() => void loadSchedule()}
             className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-pitch disabled:opacity-60"
           >
-            {isLoading("load_schedule") ? "Importing…" : "Import schedule"}
+            {isLoading("load_schedule") ? "Importando…" : "Importar calendario"}
           </button>
         </section>
 
         <section className="rounded-xl border border-slate-700 bg-card p-4 space-y-3">
-          <p className="font-semibold">Load Matches (simple)</p>
+          <p className="font-semibold">Cargar partidos (simple)</p>
           <textarea
             className="h-28 w-full rounded-lg border border-slate-600 bg-slate-900 p-2 font-mono text-xs"
             value={jsonMatches}
@@ -342,7 +342,7 @@ export default function AdminPage() {
           />
           <div className="flex flex-wrap gap-2">
             <button disabled={isLoading("load_json")} onClick={() => void loadJsonMatches()} className="rounded-lg bg-slate-700 px-3 py-2 text-sm">
-              {isLoading("load_json") ? "Loading..." : "Load JSON"}
+              {isLoading("load_json") ? "Cargando..." : "Cargar JSON"}
             </button>
             <input
               type="file"
@@ -359,7 +359,7 @@ export default function AdminPage() {
         </section>
 
         <section className="rounded-xl border border-amber-500/25 bg-card p-4 space-y-3">
-          <p className="font-semibold text-amber-200">Simulated Time</p>
+          <p className="font-semibold text-amber-200">Hora simulada</p>
           <input
             className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 font-mono text-sm"
             value={simTimeIso}
@@ -368,17 +368,17 @@ export default function AdminPage() {
           />
           <div className="flex flex-wrap gap-2">
             <button disabled={isLoading("simulate_time")} onClick={() => void setSimulatedClock()} className="rounded-lg bg-amber-600/80 px-3 py-2 text-sm">
-              {isLoading("simulate_time") ? "Saving..." : "Set Simulated Time"}
+              {isLoading("simulate_time") ? "Guardando..." : "Fijar hora simulada"}
             </button>
             <button disabled={isLoading("reset_time")} onClick={() => void resetSimulatedClock()} className="rounded-lg border border-slate-500 bg-slate-800 px-3 py-2 text-sm">
-              {isLoading("reset_time") ? "Saving..." : "Reset Time"}
+              {isLoading("reset_time") ? "Guardando..." : "Restablecer hora"}
             </button>
           </div>
         </section>
 
         <section className="rounded-xl border border-slate-700 bg-card p-4 space-y-3">
-          <p className="font-semibold">Pool Management</p>
-          {pool ? <p className="text-sm text-slate-400">Current pool: {pool.pool_total_usd} USD</p> : null}
+          <p className="font-semibold">Gestión del pozo</p>
+          {pool ? <p className="text-sm text-slate-400">Pozo actual: {pool.pool_total_usd} USD</p> : null}
           <div className="flex gap-2">
             <input
               type="number"
@@ -388,31 +388,31 @@ export default function AdminPage() {
               className="flex-1 rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
             />
             <button disabled={isLoading("save_pool")} onClick={() => void savePool()} className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-pitch">
-              {isLoading("save_pool") ? "Saving..." : "Update Pool"}
+              {isLoading("save_pool") ? "Guardando..." : "Actualizar pozo"}
             </button>
           </div>
         </section>
 
         <section className="rounded-xl border border-slate-700 bg-card p-4 space-y-3">
-          <p className="font-semibold">Reset Tools</p>
+          <p className="font-semibold">Herramientas de reinicio</p>
           <div className="flex flex-wrap gap-2">
             <button
               disabled={isLoading("reset_sim")}
               onClick={() => void resetSimulation()}
               className="rounded-lg border border-slate-500 bg-slate-800 px-3 py-2 text-sm"
             >
-              {isLoading("reset_sim") ? "Saving..." : "Reset Simulation"}
+              {isLoading("reset_sim") ? "Guardando..." : "Reiniciar simulación"}
             </button>
           </div>
           <div className="rounded-lg border border-danger/40 bg-danger/10 p-3">
-            <p className="text-sm font-semibold text-danger">Danger Zone</p>
+            <p className="text-sm font-semibold text-danger">Zona peligrosa</p>
             <p className="mt-1 text-xs text-slate-300">
-              These actions permanently delete data. Use the exact confirmation strings to proceed.
+              Estas acciones eliminan datos permanentemente. Usa las cadenas de confirmación exactas.
             </p>
 
             <div className="mt-3 space-y-4">
               <div className="space-y-2">
-                <p className="text-xs font-medium text-slate-200">Option A — reset matches to scheduled (keep matches)</p>
+                <p className="text-xs font-medium text-slate-200">Opción A — resetear partidos a programados (conservar partidos)</p>
                 <input
                   className="w-full rounded-lg border border-danger/40 bg-slate-950 px-3 py-2 text-sm"
                   placeholder="CONFIRM RESET"
@@ -424,12 +424,12 @@ export default function AdminPage() {
                   onClick={() => void resetAllData()}
                   className="w-full rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
                 >
-                  {isLoading("reset_all_data") ? "Resetting..." : "Reset All Data"}
+                  {isLoading("reset_all_data") ? "Reseteando..." : "Resetear todos los datos"}
                 </button>
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-medium text-slate-200">Option B — delete bets only</p>
+                <p className="text-xs font-medium text-slate-200">Opción B — eliminar solo apuestas</p>
                 <input
                   className="w-full rounded-lg border border-danger/40 bg-slate-950 px-3 py-2 text-sm"
                   placeholder="DELETE BETS"
@@ -441,12 +441,12 @@ export default function AdminPage() {
                   onClick={() => void resetBetsOnly()}
                   className="w-full rounded-lg border border-danger/40 bg-danger/20 px-3 py-2 text-sm font-semibold text-danger disabled:opacity-60"
                 >
-                  {isLoading("reset_bets") ? "Deleting..." : "Reset Bets Only"}
+                  {isLoading("reset_bets") ? "Eliminando..." : "Eliminar solo apuestas"}
                 </button>
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-medium text-slate-200">Option C — delete matches + bets (test wipe)</p>
+                <p className="text-xs font-medium text-slate-200">Opción C — eliminar partidos + apuestas (borrado de prueba)</p>
                 <input
                   className="w-full rounded-lg border border-danger/40 bg-slate-950 px-3 py-2 text-sm"
                   placeholder="DELETE ALL"
@@ -458,7 +458,7 @@ export default function AdminPage() {
                   onClick={() => void resetMatchesAndBets()}
                   className="w-full rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
                 >
-                  {isLoading("reset_matches") ? "Deleting..." : "Reset Matches + Bets"}
+                  {isLoading("reset_matches") ? "Eliminando..." : "Eliminar partidos + apuestas"}
                 </button>
               </div>
             </div>

@@ -11,14 +11,32 @@ from app.utils.schedule_time import parse_schedule_datetime
 from app.utils.team_codes import is_placeholder_team, team_display_code
 
 
+def _normalize_group_name(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    g = raw.strip()
+    if not g:
+        return None
+    upper = g.upper()
+    if upper.startswith("GROUP ") or upper.startswith("GRUPO "):
+        parts = g.split()
+        letter = parts[-1] if parts else ""
+        if len(letter) == 1 and letter.upper() in "ABCDEFGHIJKL":
+            return f"Group {letter.upper()}"
+        return g
+    if len(g) == 1 and g.upper() in "ABCDEFGHIJKL":
+        return f"Group {g.upper()}"
+    return g
+
+
 def _parse_match_row(raw: dict) -> dict:
     team1 = (raw.get("team1") or "").strip()
     team2 = (raw.get("team2") or "").strip()
     if not team1 or not team2:
         raise ValueError("team1 and team2 are required")
     start_time = parse_schedule_datetime(raw["date"], raw["time"])
-    group = raw.get("group")
-    group_name = group.strip() if isinstance(group, str) and group.strip() else None
+    group_raw = raw.get("group") or raw.get("grupo") or raw.get("Group")
+    group_name = _normalize_group_name(group_raw.strip() if isinstance(group_raw, str) else None)
     num = raw.get("num")
     match_number = int(num) if num is not None else None
     return {

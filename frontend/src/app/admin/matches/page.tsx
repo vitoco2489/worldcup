@@ -8,6 +8,7 @@ import type { FinishedMatchTable, Match, UserMe } from "@/lib/api";
 import { apiFetch, fetchMe, getToken } from "@/lib/api";
 import { useEffectiveNow } from "@/hooks/useEffectiveNow";
 import { formatLocal, matchLifecycleStatus, type MatchLifecycleStatus } from "@/lib/time";
+import { formatPrediction } from "@/lib/i18n";
 
 type RowState = "idle" | "edited" | "saved" | "error";
 type MatchDraft = {
@@ -67,7 +68,7 @@ export default function AdminMatchesPage() {
 
   useEffect(() => {
     void load().catch((e) => {
-      toast.error(e instanceof Error ? e.message : "Failed to load match manager");
+      toast.error(e instanceof Error ? e.message : "Error al cargar el gestor de partidos");
       router.replace("/");
     });
   }, [load, router]);
@@ -92,7 +93,7 @@ export default function AdminMatchesPage() {
   async function saveRow(matchId: string) {
     const d = drafts[matchId];
     if (!d || !isValid(d.scoreHome, d.scoreAway)) {
-      toast.error("Both scores are required (>= 0).");
+      toast.error("Ambos marcadores son obligatorios (≥ 0).");
       return;
     }
     const scoreHome = Number(d.scoreHome);
@@ -122,14 +123,14 @@ export default function AdminMatchesPage() {
           scoreHome: String(scoreHome),
           scoreAway: String(scoreAway),
           rowState: "saved",
-          message: "Saved",
+          message: "Guardado",
         },
       }));
-      toast.success("Saved");
+      toast.success("Guardado");
       const fresh = await apiFetch<FinishedMatchTable[]>("/admin/finished-matches-table");
       setFinishedTables(fresh);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not save row";
+      const msg = e instanceof Error ? e.message : "No se pudo guardar la fila";
       setDrafts((prev) => ({ ...prev, [matchId]: { ...prev[matchId], rowState: "error", message: msg } }));
       toast.error(msg);
     } finally {
@@ -140,12 +141,12 @@ export default function AdminMatchesPage() {
   async function saveAll() {
     const edited = matches.map((m) => ({ match: m, d: drafts[m.id] })).filter((x) => x.d?.rowState === "edited");
     if (edited.length === 0) {
-      toast.error("No edited matches.");
+      toast.error("No hay partidos editados.");
       return;
     }
     const invalid = edited.find((x) => !x.d || !isValid(x.d.scoreHome, x.d.scoreAway));
     if (invalid) {
-      toast.error("Edited rows must have both valid scores.");
+      toast.error("Las filas editadas deben tener marcadores válidos.");
       return;
     }
     setLoading(true);
@@ -183,16 +184,16 @@ export default function AdminMatchesPage() {
             scoreHome: String(s.h),
             scoreAway: String(s.a),
             rowState: "saved",
-            message: "Saved",
+            message: "Guardado",
           };
         }
         return next;
       });
-      toast.success("Saved");
+      toast.success("Guardado");
       const fresh = await apiFetch<FinishedMatchTable[]>("/admin/finished-matches-table");
       setFinishedTables(fresh);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Bulk save failed");
+      toast.error(e instanceof Error ? e.message : "Error al guardar en lote");
     } finally {
       setLoading(false);
     }
@@ -200,7 +201,7 @@ export default function AdminMatchesPage() {
 
   function resetChanges() {
     hydrateDrafts(matches);
-    toast.success("Local changes reset");
+    toast.success("Cambios locales descartados");
   }
 
   const filtered = useMemo(
@@ -212,27 +213,27 @@ export default function AdminMatchesPage() {
   );
 
   if (!me) {
-    return <div className="min-h-screen bg-pitch px-4 py-8 text-slate-300">Loading…</div>;
+    return <div className="min-h-screen bg-pitch px-4 py-8 text-slate-300">Cargando…</div>;
   }
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl bg-pitch px-4 py-8 text-white">
       <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-slate-400">
         <Link href="/" className="hover:text-slate-200">
-          Dashboard
+          Inicio
         </Link>
         <span>›</span>
         <Link href="/profile" className="hover:text-slate-200">
-          Profile
+          Perfil
         </Link>
         <span>›</span>
-        <span className="text-slate-200">Match Manager</span>
+        <span className="text-slate-200">Gestor de partidos</span>
       </div>
 
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Match Manager</h1>
-          <p className="text-sm text-slate-400">Inline result updates for fast admin editing.</p>
+          <h1 className="text-2xl font-bold">Gestor de partidos</h1>
+          <p className="text-sm text-slate-400">Actualiza resultados en línea para edición rápida.</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -240,16 +241,16 @@ export default function AdminMatchesPage() {
             value={filter}
             onChange={(e) => setFilter(e.target.value as "all" | "pending" | "finished")}
           >
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="finished">Finished</option>
+            <option value="all">Todos</option>
+            <option value="pending">Pendientes</option>
+            <option value="finished">Finalizados</option>
           </select>
           <button
             type="button"
             onClick={resetChanges}
             className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-semibold"
           >
-            Reset Changes
+            Descartar cambios
           </button>
           <button
             type="button"
@@ -257,7 +258,7 @@ export default function AdminMatchesPage() {
             onClick={() => void saveAll()}
             className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-pitch disabled:opacity-60"
           >
-            {loading ? "Saving..." : "Save All"}
+            {loading ? "Guardando..." : "Guardar todo"}
           </button>
         </div>
       </header>
@@ -266,13 +267,13 @@ export default function AdminMatchesPage() {
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-slate-900 text-slate-400">
             <tr>
-              <th className="px-3 py-2">Teams</th>
-              <th className="px-3 py-2">Match Time</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Home</th>
-              <th className="px-3 py-2">Away</th>
-              <th className="px-3 py-2">Row</th>
-              <th className="px-3 py-2 text-right">Action</th>
+              <th className="px-3 py-2">Equipos</th>
+              <th className="px-3 py-2">Hora</th>
+              <th className="px-3 py-2">Estado</th>
+              <th className="px-3 py-2">Local</th>
+              <th className="px-3 py-2">Visitante</th>
+              <th className="px-3 py-2">Fila</th>
+              <th className="px-3 py-2 text-right">Acción</th>
             </tr>
           </thead>
           <tbody>
@@ -281,13 +282,13 @@ export default function AdminMatchesPage() {
               const valid = isValid(d.scoreHome, d.scoreAway);
               const savingRow = rowSavingId === m.id;
               const rowStatusLabel = savingRow
-                ? "Saving…"
+                ? "Guardando…"
                 : d.rowState === "saved"
-                  ? "Saved"
+                  ? "Guardado"
                   : d.rowState === "error"
                     ? d.message ?? "Error"
                     : d.rowState === "edited"
-                      ? "Edited"
+                      ? "Editado"
                       : "";
               const stateClass =
                 d.rowState === "saved"
@@ -327,12 +328,12 @@ export default function AdminMatchesPage() {
                   <td className="px-3 py-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadge}`}>
                       {lifecycle === "finished"
-                        ? "Finished"
+                        ? "Finalizado"
                         : lifecycle === "in_progress"
-                          ? "In progress"
+                          ? "En juego"
                           : lifecycle === "locked"
-                            ? "Locked"
-                            : "Scheduled"}
+                            ? "Cerrado"
+                            : "Programado"}
                     </span>
                   </td>
                   <td className="px-3 py-2">
@@ -363,7 +364,7 @@ export default function AdminMatchesPage() {
                       onClick={() => void saveRow(m.id)}
                       className="rounded bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                     >
-                      {savingRow ? "Saving…" : "Save"}
+                      {savingRow ? "Guardando…" : "Guardar"}
                     </button>
                   </td>
                 </tr>
@@ -374,9 +375,9 @@ export default function AdminMatchesPage() {
       </div>
 
       <section className="mt-8 space-y-3">
-        <h2 className="text-lg font-semibold">Finished Matches</h2>
+        <h2 className="text-lg font-semibold">Partidos finalizados</h2>
         {finishedTables.length === 0 ? (
-          <p className="text-sm text-slate-400">No finished matches yet.</p>
+          <p className="text-sm text-slate-400">Aún no hay partidos finalizados.</p>
         ) : (
           <div className="space-y-4">
             {finishedTables.map((fm) => (
@@ -393,10 +394,10 @@ export default function AdminMatchesPage() {
                   <table className="w-full min-w-[560px] text-left text-xs">
                     <thead className="sticky top-0 bg-slate-900 text-slate-400">
                       <tr>
-                        <th className="px-2 py-2">User</th>
-                        <th className="px-2 py-2">Outcome</th>
-                        <th className="px-2 py-2">Score</th>
-                        <th className="px-2 py-2">Result</th>
+                        <th className="px-2 py-2">Usuario</th>
+                        <th className="px-2 py-2">Resultado</th>
+                        <th className="px-2 py-2">Marcador</th>
+                        <th className="px-2 py-2">Acierto</th>
                         <th className="px-2 py-2 text-right">Pts</th>
                       </tr>
                     </thead>
@@ -412,7 +413,7 @@ export default function AdminMatchesPage() {
                         return (
                           <tr key={`${fm.match_id}-${idx}`} className="border-t border-slate-800">
                             <td className="px-2 py-1.5">{r.user_name}</td>
-                            <td className="px-2 py-1.5">{r.predicted_outcome ?? "—"}</td>
+                            <td className="px-2 py-1.5">{formatPrediction(r.predicted_outcome)}</td>
                             <td className="px-2 py-1.5 font-mono">{r.predicted_score ?? "—"}</td>
                             <td className={`px-2 py-1.5 ${indicatorClass}`}>{icon}</td>
                             <td className="px-2 py-1.5 text-right tabular-nums">{r.points_earned}</td>

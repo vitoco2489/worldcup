@@ -16,6 +16,7 @@ import {
   type MatchBettingPhase,
 } from "@/lib/time";
 import { FootballKick } from "./FootballKick";
+import { MatchMetaBadges } from "./MatchMetaBadges";
 
 const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
 
@@ -105,13 +106,13 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
 
   const lifecycleBadge =
     lifecycle === "scheduled" ? (
-      <span className="rounded-full bg-slate-600/40 px-2 py-0.5 text-slate-300">Scheduled</span>
+      <span className="rounded-full bg-slate-600/40 px-2 py-0.5 text-slate-300">Programado</span>
     ) : lifecycle === "locked" ? (
-      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-400">Closing soon</span>
+      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-400">Cierra pronto</span>
     ) : lifecycle === "in_progress" ? (
-      <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-400">In progress</span>
+      <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-400">En juego</span>
     ) : (
-      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-400">Finished</span>
+      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-400">Finalizado</span>
     );
 
   const impliedOutcome = useMemo(() => {
@@ -134,20 +135,20 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
     const hs = scoreHome.trim();
     const as = scoreAway.trim();
     if (hs === "" && as === "") return { ok: true, home: null, away: null };
-    if (hs === "" || as === "") return { ok: false, message: "Enter both home and away scores, or leave both blank." };
+    if (hs === "" || as === "") return { ok: false, message: "Ingresa ambos marcadores o déjalos vacíos." };
     const ph = parseInt(hs, 10);
     const pa = parseInt(as, 10);
     if (Number.isNaN(ph) || Number.isNaN(pa) || ph < 0 || pa < 0) {
-      return { ok: false, message: "Scores must be non-negative whole numbers." };
+      return { ok: false, message: "Los goles deben ser números enteros no negativos." };
     }
     return { ok: true, home: ph, away: pa };
   }
 
   function outcomeScoresError(pred: string, home: number | null, away: number | null): string | null {
     if (home === null || away === null) return null;
-    if (pred === "home" && !(home > away)) return "Home pick needs home score greater than away.";
-    if (pred === "away" && !(away > home)) return "Away pick needs away score greater than home.";
-    if (pred === "draw" && home !== away) return "Draw pick needs equal scores.";
+    if (pred === "home" && !(home > away)) return "Si eliges local, el marcador local debe ser mayor.";
+    if (pred === "away" && !(away > home)) return "Si eliges visitante, el marcador visitante debe ser mayor.";
+    if (pred === "draw" && home !== away) return "Si eliges empate, ambos marcadores deben ser iguales.";
     return null;
   }
 
@@ -163,7 +164,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
     let effective: "home" | "away" | "draw" = prediction;
     if (scores.home !== null && scores.away !== null) {
       if (!impliedOutcome) {
-        const msg = "Invalid score line";
+        const msg = "Marcador inválido";
         setError(msg);
         toast.error(msg);
         return;
@@ -191,9 +192,9 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
       setLocalPrediction(effective);
       setKick((k) => k + 1);
       onBetSaved?.();
-      toast.success("Bet saved successfully ⚽");
+      toast.success("Apuesta guardada ⚽");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not save bet";
+      const msg = e instanceof Error ? e.message : "No se pudo guardar la apuesta";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -214,6 +215,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
       <FootballKick pulse={kick} />
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-1 flex-col gap-3">
+          <MatchMetaBadges groupName={match.group_name} round={match.round} />
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <TeamFlag code={match.team_home_code} name={match.team_home} />
@@ -233,52 +235,40 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
             <span>{formatLocal(match.start_time)}</span>
-            {match.round ? (
-              <>
-                <span className="text-slate-500">·</span>
-                <span>{match.round}</span>
-              </>
-            ) : null}
-            {match.group_name ? (
-              <>
-                <span className="text-slate-500">·</span>
-                <span>{match.group_name}</span>
-              </>
-            ) : null}
             <span className="text-slate-500">·</span>
             {lifecycleBadge}
           </div>
           {teamsPending ? (
             <p className="text-xs text-amber-300/90">
-              Teams TBD — picks open once group/knockout slots are confirmed.
+              Equipos por definir — las apuestas abren cuando se confirmen los cupos de grupo o eliminatoria.
             </p>
           ) : null}
           <div className="text-sm">
             {!resolved && phase === "editable" && lockSec > 0 ? (
               <span className="text-slate-300">
-                Locks in <span className="font-mono text-white">{formatCountdown(lockSec)}</span>
+                Cierra en <span className="font-mono text-white">{formatCountdown(lockSec)}</span>
               </span>
             ) : !resolved && phase === "closing_soon" ? (
               <span className="text-amber-200/90">
-                Picks locked · kickoff in <span className="font-mono text-white">{formatCountdown(kickSec)}</span>
+                Apuestas cerradas · inicio en <span className="font-mono text-white">{formatCountdown(kickSec)}</span>
               </span>
             ) : !resolved && lifecycle === "in_progress" ? (
-              <span className="text-sky-300">Match in progress</span>
+              <span className="text-sky-300">Partido en juego</span>
             ) : !resolved && phase === "locked" ? (
-              <span className="text-slate-500">Kickoff passed — picks closed</span>
+              <span className="text-slate-500">Ya empezó — apuestas cerradas</span>
             ) : !resolved ? (
               <span className="text-slate-400">—</span>
             ) : (
               <span className="text-slate-300">
-                {existingBet?.points_awarded != null ? `${existingBet.points_awarded} pts` : "Resolved"}
-                {existingBet?.correct === true ? " · outcome +3" : existingBet?.correct === false ? " · outcome 0" : ""}
-                {existingBet?.exact_score_hit ? " · exact score +2" : ""}
+                {existingBet?.points_awarded != null ? `${existingBet.points_awarded} pts` : "Resuelto"}
+                {existingBet?.correct === true ? " · resultado +3" : existingBet?.correct === false ? " · resultado 0" : ""}
+                {existingBet?.exact_score_hit ? " · marcador exacto +2" : ""}
               </span>
             )}
           </div>
           {showPredicted ? (
             <p className="text-xs text-slate-400">
-              Your score pick:{" "}
+              Tu marcador:{" "}
               <span className="font-mono text-slate-200">
                 {existingBet?.predicted_score_home}–{existingBet?.predicted_score_away}
               </span>
@@ -302,17 +292,17 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
             {saving ? (
               <span className="inline-flex items-center gap-2">
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Saving...
+                Guardando...
               </span>
             ) : (
               <>
-                Save{" "}
+                Guardar{" "}
             {impliedOutcome === "home"
               ? match.team_home.slice(0, 18)
               : impliedOutcome === "away"
                 ? match.team_away.slice(0, 18)
-                : "draw"}{" "}
-                (from score line)
+                : "empate"}{" "}
+                (según marcador)
               </>
             )}
           </button>
@@ -321,7 +311,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
             const isSel = localPrediction === p;
             const disabled = saving;
             const label =
-              p === "home" ? match.team_home.slice(0, 14) : p === "away" ? match.team_away.slice(0, 14) : "Draw";
+              p === "home" ? match.team_home.slice(0, 14) : p === "away" ? match.team_away.slice(0, 14) : "Empate";
             return (
               <button
                 key={p}
@@ -335,7 +325,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
                 {saving ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Saving...
+                    Guardando...
                   </span>
                 ) : (
                   label
@@ -348,14 +338,14 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
 
       {canBet && impliedOutcome ? (
         <p className="mt-2 text-xs text-slate-500">
-          1×2 follows your score line — use the button above to save.
+          El 1×2 sigue tu marcador — usa el botón de arriba para guardar.
         </p>
       ) : null}
 
       {canBet ? (
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-xs text-slate-400">
-            Pred. home goals
+            Goles local
             <input
               type="number"
               min={0}
@@ -364,11 +354,11 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
               value={scoreHome}
               onChange={(e) => setScoreHome(e.target.value)}
               className="w-24 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
-              placeholder="opt"
+              placeholder="opc."
             />
           </label>
           <label className="flex flex-col gap-1 text-xs text-slate-400">
-            Pred. away goals
+            Goles visitante
             <input
               type="number"
               min={0}
@@ -377,10 +367,10 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
               value={scoreAway}
               onChange={(e) => setScoreAway(e.target.value)}
               className="w-24 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
-              placeholder="opt"
+              placeholder="opc."
             />
           </label>
-          <span className="pb-1 text-xs text-slate-500">Optional · both or neither</span>
+          <span className="pb-1 text-xs text-slate-500">Opcional · los dos o ninguno</span>
         </div>
       ) : null}
 

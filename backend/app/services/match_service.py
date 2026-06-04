@@ -57,7 +57,7 @@ def list_recent(db: Session, limit: int = 20) -> list[MatchPublic]:
     return [to_public(m, now=now) for m in rows]
 
 
-def list_upcoming(db: Session, limit: int = 50) -> list[MatchPublic]:
+def list_upcoming(db: Session, limit: int = 200) -> list[MatchPublic]:
     now = get_current_time(db=db)
     rows = match_repo.list_upcoming(db, now=now, limit=limit)
     return [to_public(m, now=now) for m in rows]
@@ -65,7 +65,7 @@ def list_upcoming(db: Session, limit: int = 50) -> list[MatchPublic]:
 
 def list_upcoming_without_bet(db: Session, user_id: uuid.UUID) -> list[MatchPublic]:
     now = get_current_time(db=db)
-    upcoming = match_repo.list_upcoming(db, now=now, limit=100)
+    upcoming = match_repo.list_upcoming(db, now=now, limit=200)
     out: list[MatchPublic] = []
     for m in upcoming:
         if bet_repo.get_by_user_and_match(db, user_id, m.id) is None:

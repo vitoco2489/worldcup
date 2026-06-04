@@ -1,11 +1,14 @@
+import { DISPLAY_TIMEZONE, LOCALE } from "./i18n";
+
 export function parseUtc(iso: string): Date {
   return new Date(iso);
 }
 
 export function formatLocal(iso: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(LOCALE, {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: DISPLAY_TIMEZONE,
   }).format(parseUtc(iso));
 }
 
@@ -63,4 +66,32 @@ export function isUrgent(startIso: string, nowMs: number = Date.now()): boolean 
   const start = parseUtc(startIso).getTime();
   const ms = start - nowMs;
   return ms > 0 && ms < 60 * 60 * 1000;
+}
+
+/** Día calendario (YYYY-MM-DD) en hora de Chile, para agrupar partidos. */
+export function localDateKey(isoOrDate: string | Date): string {
+  const d = typeof isoOrDate === "string" ? parseUtc(isoOrDate) : isoOrDate;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: DISPLAY_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+export function formatDayLabel(dateKey: string): string {
+  const d = parseUtc(`${dateKey}T15:00:00Z`);
+  return new Intl.DateTimeFormat(LOCALE, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: DISPLAY_TIMEZONE,
+  }).format(d);
+}
+
+export function defaultUpcomingDayKey(dates: string[], nowMs: number = Date.now()): string | null {
+  if (dates.length === 0) return null;
+  const today = localDateKey(new Date(nowMs));
+  return dates.find((k) => k >= today) ?? dates[0];
 }

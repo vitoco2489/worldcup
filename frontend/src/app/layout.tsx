@@ -4,13 +4,13 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "World Cup Pool",
-  description: "Private World Cup betting pool",
+  title: "VitoBet — Mundial 2026",
+  description: "Polla privada del Mundial entre amigos",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body>
         <Providers>{children}</Providers>
       </body>
