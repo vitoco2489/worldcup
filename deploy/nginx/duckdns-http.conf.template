@@ -1,0 +1,40 @@
+# DuckDNS — HTTP only (bootstrap before Let's Encrypt).
+# API under /api/ to avoid clashing with Next.js /admin pages.
+
+upstream vitobet_frontend {
+  server frontend:3000;
+}
+
+upstream vitobet_backend {
+  server backend:8000;
+}
+
+server {
+  listen 80;
+  server_name ${APP_DOMAIN};
+
+  location /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+  }
+
+  location /api/ {
+    rewrite ^/api/(.*) /$1 break;
+    proxy_pass http://vitobet_backend;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location / {
+    proxy_pass http://vitobet_frontend;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
