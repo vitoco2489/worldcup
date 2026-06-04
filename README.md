@@ -132,6 +132,19 @@ After a successful save, the UI plays a short **Framer Motion** “kick” anima
 
 **Profile** (`/profile`): stats, prize pool display, and an **Admin** panel (same Google account as backend admin) for pool amount, JSON/CSV match upload, simulate result, and force-lock bets.
 
+## DigitalOcean (single Droplet, ~$6/mo)
+
+See **[deploy/DIGITALOCEAN.md](deploy/DIGITALOCEAN.md)** for step-by-step: Docker on Ubuntu, `docker-compose.prod.yml`, nginx, Let’s Encrypt, and Google OAuth.
+
+Quick start on the server:
+
+```bash
+git clone https://github.com/vitoco2489/worldcup.git /opt/vitobet && cd /opt/vitobet
+cp deploy/env.production.example .env   # edit domains + secrets
+chmod +x deploy/*.sh && ./deploy/install-docker.sh
+./deploy/setup-droplet.sh --http-only   # then ./deploy/ssl-init.sh for HTTPS
+```
+
 ## Render (vitobet)
 
 Blueprint: `render.yaml` — **PostgreSQL** (`vitobet-db`), **API** (`vitobet-api`, Docker), **web** (`vitobet-web`, Node), **cron** (`vitobet-cron`).
