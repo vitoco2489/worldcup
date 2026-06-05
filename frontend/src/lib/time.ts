@@ -12,9 +12,11 @@ export function formatLocal(iso: string): string {
   }).format(parseUtc(iso));
 }
 
+export const LOCK_BEFORE_START_MINUTES = 5;
+
 export function lockDeadlineMs(startIso: string): number {
   const start = parseUtc(startIso).getTime();
-  return start - 5 * 60 * 1000;
+  return start - LOCK_BEFORE_START_MINUTES * 60 * 1000;
 }
 
 export function secondsUntilLock(startIso: string, nowMs: number = Date.now()): number {
@@ -28,7 +30,7 @@ export type MatchLifecycleStatus = "scheduled" | "locked" | "in_progress" | "fin
 /** Editable: more than 5m before kickoff. Closing soon: lock window until kickoff. Locked: kickoff passed. */
 export function matchBettingPhase(startIso: string, nowMs: number): MatchBettingPhase {
   const start = parseUtc(startIso).getTime();
-  const lockMs = start - 5 * 60 * 1000;
+  const lockMs = start - LOCK_BEFORE_START_MINUTES * 60 * 1000;
   if (nowMs >= start) return "locked";
   if (nowMs >= lockMs) return "closing_soon";
   return "editable";

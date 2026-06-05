@@ -265,6 +265,11 @@ export function Dashboard() {
         <div className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{loadError}</div>
       ) : null}
 
+      <p className="rounded-lg border border-sky-500/25 bg-sky-500/5 px-3 py-2 text-sm text-sky-100/90">
+        ⏱ Las apuestas de cada partido se cierran{" "}
+        <span className="font-semibold text-sky-50">5 minutos antes</span> del pitido inicial.
+      </p>
+
       <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-4">
           <div className="rounded-xl border border-slate-700 bg-card p-3">
@@ -448,6 +453,7 @@ export function Dashboard() {
               <li>+3 → resultado correcto (1×2)</li>
               <li>+2 → marcador exacto</li>
               <li>Máximo: 5 puntos por partido</li>
+              <li className="pt-1 text-sky-200/80">Cierre de apuestas: 5 min antes del pitido</li>
             </ul>
           </div>
           <h2 className="text-lg font-semibold text-white">Apuestas del grupo</h2>
