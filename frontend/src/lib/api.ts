@@ -76,6 +76,7 @@ export type LeaderboardRow = {
   total_points: number;
   correct_bets: number;
   incorrect_bets: number;
+  total_bets: number;
 };
 
 export type Pool = {

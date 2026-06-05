@@ -308,6 +308,7 @@ export function Dashboard() {
                   <th className="px-3 py-2">#</th>
                   <th className="px-3 py-2">Nombre</th>
                   <th className="px-3 py-2 text-right">Pts</th>
+                  <th className="px-3 py-2 text-right">Apuestas</th>
                   <th className="px-3 py-2 text-right">Aciertos</th>
                   <th className="px-3 py-2 text-right">Errores</th>
                 </tr>
@@ -342,6 +343,7 @@ export function Dashboard() {
                     >
                       {row.total_points}
                     </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-300">{row.total_bets}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{row.correct_bets}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-400">{row.incorrect_bets}</td>
                   </motion.tr>

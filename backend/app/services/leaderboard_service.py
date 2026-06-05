@@ -19,6 +19,14 @@ def leaderboard(db: Session, limit: int = 50) -> list[LeaderboardRow]:
     has_final_score = and_(Match.score_home.isnot(None), Match.score_away.isnot(None))
     correct_pick = and_(has_final_score, Bet.prediction == match_outcome)
     incorrect_pick = and_(has_final_score, Bet.prediction != match_outcome)
+    bet_counts = (
+        select(
+            Bet.user_id.label("user_id"),
+            func.count(Bet.id).label("total_bets"),
+        )
+        .group_by(Bet.user_id)
+        .subquery()
+    )
     totals = (
         select(
             Bet.user_id.label("user_id"),
@@ -40,8 +48,10 @@ def leaderboard(db: Session, limit: int = 50) -> list[LeaderboardRow]:
             func.coalesce(totals.c.total_points, 0).label("total_points"),
             func.coalesce(totals.c.correct_bets, 0).label("correct_bets"),
             func.coalesce(totals.c.incorrect_bets, 0).label("incorrect_bets"),
+            func.coalesce(bet_counts.c.total_bets, 0).label("total_bets"),
         )
         .outerjoin(totals, totals.c.user_id == User.id)
+        .outerjoin(bet_counts, bet_counts.c.user_id == User.id)
         .order_by(
             func.coalesce(totals.c.total_points, 0).desc(),
             func.coalesce(totals.c.correct_bets, 0).desc(),
@@ -59,6 +69,7 @@ def leaderboard(db: Session, limit: int = 50) -> list[LeaderboardRow]:
             total_points=int(r.total_points or 0),
             correct_bets=int(r.correct_bets or 0),
             incorrect_bets=int(r.incorrect_bets or 0),
+            total_bets=int(r.total_bets or 0),
         )
         for r in rows
     ]

@@ -10,3 +10,4 @@ class LeaderboardRow(BaseModel):
     total_points: int
     correct_bets: int
     incorrect_bets: int
+    total_bets: int
