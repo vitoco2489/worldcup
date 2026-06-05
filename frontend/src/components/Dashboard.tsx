@@ -150,6 +150,12 @@ export function Dashboard() {
   }, [recent, selectedDay]);
 
   const leaderboardView = useMemo(() => buildLeaderboardView(leaderboard), [leaderboard]);
+  const showHitColumns = useMemo(
+    () =>
+      leaderboardView.hasLeader ||
+      leaderboardView.rows.some((r) => r.correct_bets > 0 || r.incorrect_bets > 0),
+    [leaderboardView],
+  );
   const leaderId = leaderboardView.hasLeader
     ? (leaderboardView.rows.find((r) => r.displayRank === 1)?.user_id ?? "none")
     : "no-leader";
@@ -314,22 +320,41 @@ export function Dashboard() {
           {selectedDay ? <DailyMessage dateKey={selectedDay} /> : null}
         </div>
 
-        <div className="rounded-xl border border-slate-700 bg-card p-4">
-          <h2 className="text-lg font-semibold">Ranking</h2>
+        <div className="rounded-xl border border-slate-700 bg-card p-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-base font-semibold">Ranking</h2>
+            {leaderboardView.rows.length > 0 ? (
+              <span className="text-[11px] text-slate-500">{leaderboardView.rows.length} jugadores</span>
+            ) : null}
+          </div>
           {!leaderboardView.hasLeader && leaderboardView.rows.length > 0 ? (
-            <p className="mt-1 text-xs text-slate-500">Aún no hay puntos — el podio aparece cuando se resuelvan partidos.</p>
+            <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+              Sin puntos aún — podio cuando se resuelvan partidos.
+            </p>
           ) : null}
-          <div className="mt-3 overflow-x-auto rounded-lg border border-slate-800">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-900/60 text-slate-400">
+          <div className="mt-2 max-h-44 overflow-auto rounded-lg border border-slate-800 sm:max-h-48">
+            <table className="w-full min-w-[18rem] text-left text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-900/95 text-[11px] text-slate-400 backdrop-blur-sm">
                 <tr>
-                  <th className="px-3 py-2">#</th>
-                  <th className="px-3 py-2">Nombre</th>
-                  <th className="px-3 py-2 text-right">Pts</th>
-                  <th className="px-3 py-2 text-right">Apuestas</th>
-                  <th className="px-3 py-2 text-right">Aciertos</th>
-                  <th className="px-3 py-2 text-right">Errores</th>
-                  <th className="px-3 py-2 text-center">Cuota</th>
+                  <th className="whitespace-nowrap px-1.5 py-1">#</th>
+                  <th className="px-1.5 py-1">Nombre</th>
+                  <th className="whitespace-nowrap px-1.5 py-1 text-right">Pts</th>
+                  <th className="whitespace-nowrap px-1.5 py-1 text-right" title="Apuestas">
+                    Ap.
+                  </th>
+                  {showHitColumns ? (
+                    <>
+                      <th className="whitespace-nowrap px-1.5 py-1 text-right" title="Aciertos">
+                        Ac.
+                      </th>
+                      <th className="whitespace-nowrap px-1.5 py-1 text-right" title="Errores">
+                        Er.
+                      </th>
+                    </>
+                  ) : null}
+                  <th className="whitespace-nowrap px-1.5 py-1 text-center" title="Cuota">
+                    $
+                  </th>
                 </tr>
               </thead>
               <AnimatePresence mode="wait">
@@ -343,38 +368,46 @@ export function Dashboard() {
                   <motion.tr
                     layout
                     key={row.user_id}
-                    className={`border-t border-slate-800 transition-colors ${rowHighlightClass(row.displayRank, leaderboardView.hasLeader)}`}
+                    className={`border-t border-slate-800/80 transition-colors ${rowHighlightClass(row.displayRank, leaderboardView.hasLeader)}`}
                     animate={
                       leaderboardView.hasLeader && row.displayRank === 1
-                        ? { scale: [1, 1.01, 1] }
+                        ? { scale: [1, 1.005, 1] }
                         : { scale: 1 }
                     }
                     transition={{ duration: 0.35 }}
                   >
-                    <td className={`px-3 py-2 ${leaderboardView.hasLeader && row.displayRank <= 3 ? "text-white" : "text-slate-500"}`}>
+                    <td className={`whitespace-nowrap px-1.5 py-1 ${leaderboardView.hasLeader && row.displayRank <= 3 ? "text-white" : "text-slate-500"}`}>
                       {rankMarker(row.displayRank, leaderboardView.hasLeader)}
                     </td>
-                    <td className="px-3 py-2 font-medium">{row.name}</td>
+                    <td className="max-w-[5.5rem] truncate px-1.5 py-1 font-medium sm:max-w-[7rem]" title={row.name}>
+                      {row.name}
+                    </td>
                     <td
-                      className={`px-3 py-2 text-right tabular-nums ${
+                      className={`whitespace-nowrap px-1.5 py-1 text-right tabular-nums ${
                         leaderboardView.hasLeader && row.displayRank === 1 ? "font-bold text-amber-200" : ""
                       }`}
                     >
                       {row.total_points}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-300">{row.total_bets}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{row.correct_bets}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-400">{row.incorrect_bets}</td>
-                    <td className="px-2 py-2 text-center">
+                    <td className="whitespace-nowrap px-1.5 py-1 text-right tabular-nums text-slate-300">
+                      {row.total_bets}
+                    </td>
+                    {showHitColumns ? (
+                      <>
+                        <td className="whitespace-nowrap px-1.5 py-1 text-right tabular-nums">{row.correct_bets}</td>
+                        <td className="whitespace-nowrap px-1.5 py-1 text-right tabular-nums text-slate-400">
+                          {row.incorrect_bets}
+                        </td>
+                      </>
+                    ) : null}
+                    <td className="whitespace-nowrap px-1.5 py-1 text-center">
                       {row.entry_paid ? (
-                        <span className="inline-flex items-center justify-center gap-1 text-xs font-medium text-emerald-400">
-                          <span aria-hidden className="text-sm leading-none">✓</span>
-                          Cuota pagada
+                        <span className="text-emerald-400" title="Cuota pagada" aria-label="Cuota pagada">
+                          ✓
                         </span>
                       ) : (
-                        <span className="inline-flex items-center justify-center gap-1 text-xs font-medium text-red-400">
-                          <span aria-hidden className="text-sm leading-none">✗</span>
-                          Pendiente
+                        <span className="text-red-400" title="Cuota pendiente" aria-label="Cuota pendiente">
+                          ✗
                         </span>
                       )}
                     </td>
