@@ -11,3 +11,4 @@ class LeaderboardRow(BaseModel):
     correct_bets: int
     incorrect_bets: int
     total_bets: int
+    entry_paid: bool

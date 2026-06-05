@@ -62,6 +62,11 @@ class AdminUserRow(BaseModel):
     id: UUID
     name: str
     email: str
+    entry_paid: bool
+
+
+class EntryPaidUpdate(BaseModel):
+    entry_paid: bool
 
 
 class SimulateBetRequest(BaseModel):

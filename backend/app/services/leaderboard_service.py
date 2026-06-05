@@ -49,6 +49,7 @@ def leaderboard(db: Session, limit: int = 50) -> list[LeaderboardRow]:
             func.coalesce(totals.c.correct_bets, 0).label("correct_bets"),
             func.coalesce(totals.c.incorrect_bets, 0).label("incorrect_bets"),
             func.coalesce(bet_counts.c.total_bets, 0).label("total_bets"),
+            User.entry_paid.label("entry_paid"),
         )
         .outerjoin(totals, totals.c.user_id == User.id)
         .outerjoin(bet_counts, bet_counts.c.user_id == User.id)
@@ -70,6 +71,7 @@ def leaderboard(db: Session, limit: int = 50) -> list[LeaderboardRow]:
             correct_bets=int(r.correct_bets or 0),
             incorrect_bets=int(r.incorrect_bets or 0),
             total_bets=int(r.total_bets or 0),
+            entry_paid=bool(r.entry_paid),
         )
         for r in rows
     ]

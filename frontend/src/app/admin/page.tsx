@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type {
+  AdminUserRow,
   AllowedEmailRow,
   Pool,
   ResetAllDataResponse,
@@ -46,6 +47,8 @@ export default function AdminPage() {
   const [deleteBetsConfirmText, setDeleteBetsConfirmText] = useState("");
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState("");
   const [allowedEmails, setAllowedEmails] = useState<AllowedEmailRow[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
+  const [togglingEntryUserId, setTogglingEntryUserId] = useState<string | null>(null);
   const [newInviteEmail, setNewInviteEmail] = useState("");
   const [newInviteNote, setNewInviteNote] = useState("");
   const [loadingAction, setLoadingAction] = useState<ActionKey | null>(null);
@@ -58,10 +61,11 @@ export default function AdminPage() {
       router.replace("/");
       return;
     }
-    const [u, p, allowed] = await Promise.all([
+    const [u, p, allowed, users] = await Promise.all([
       fetchMe(),
       apiFetch<Pool>("/pool"),
       apiFetch<AllowedEmailRow[]>("/admin/allowed-emails"),
+      apiFetch<AdminUserRow[]>("/admin/users"),
     ]);
     if (!u.is_admin) {
       router.replace("/");
@@ -70,6 +74,7 @@ export default function AdminPage() {
     setMe(u);
     setPool(p);
     setAllowedEmails(allowed);
+    setAdminUsers(users);
     setPoolInput(String(p.pool_total_usd ?? 0));
   }, [router]);
 
@@ -79,6 +84,22 @@ export default function AdminPage() {
       router.replace("/");
     });
   }, [load, router]);
+
+  async function toggleEntryPaid(user: AdminUserRow) {
+    setTogglingEntryUserId(user.id);
+    try {
+      const updated = await apiFetch<AdminUserRow>(`/admin/users/${user.id}/entry-paid`, {
+        method: "PATCH",
+        body: JSON.stringify({ entry_paid: !user.entry_paid }),
+      });
+      setAdminUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      toast.success(updated.entry_paid ? `${updated.name} marcado como pagado` : `${updated.name} marcado como pendiente`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo actualizar la cuota");
+    } finally {
+      setTogglingEntryUserId(null);
+    }
+  }
 
   async function addAllowedEmail() {
     const email = newInviteEmail.trim();
@@ -402,6 +423,39 @@ export default function AdminPage() {
                       Quitar
                     </button>
                   )}
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+
+        <section className="rounded-xl border border-emerald-500/35 bg-card p-4 space-y-3">
+          <p className="font-semibold text-emerald-200">Cuotas de entrada</p>
+          <p className="text-xs text-slate-400">
+            Marca quién pagó la cuota de la polla. Se refleja en la columna &quot;Cuota&quot; del ranking.
+          </p>
+          <ul className="divide-y divide-slate-800 rounded-lg border border-slate-700">
+            {adminUsers.length === 0 ? (
+              <li className="px-3 py-3 text-sm text-slate-500">Sin usuarios registrados.</li>
+            ) : (
+              adminUsers.map((user) => (
+                <li key={user.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-slate-100">{user.name}</p>
+                    <p className="truncate text-xs text-slate-500">{user.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={togglingEntryUserId === user.id}
+                    onClick={() => void toggleEntryPaid(user)}
+                    className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                      user.entry_paid
+                        ? "border border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                        : "border border-slate-600 bg-slate-900 text-slate-400 hover:border-slate-500"
+                    }`}
+                  >
+                    {togglingEntryUserId === user.id ? "…" : user.entry_paid ? "✓ Pagó" : "Pendiente"}
+                  </button>
                 </li>
               ))
             )}

@@ -77,6 +77,7 @@ export type LeaderboardRow = {
   correct_bets: number;
   incorrect_bets: number;
   total_bets: number;
+  entry_paid: boolean;
 };
 
 export type Pool = {
@@ -151,6 +152,7 @@ export type AdminUserRow = {
   id: string;
   name: string;
   email: string;
+  entry_paid: boolean;
 };
 
 export type ResetSimulationResponse = {

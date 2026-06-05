@@ -9,12 +9,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_admin_user
 from app.models.user import User
-from app.repositories import match_repo
+from app.repositories import match_repo, user_repo
 from app.schemas.admin import (
     AdminUserRow,
     AllowedEmailCreate,
     AllowedEmailRow,
     CsvRowError,
+    EntryPaidUpdate,
     FinishedMatchTable,
     LockBetsResponse,
     MatchResultUpdateRequest,
@@ -66,7 +67,23 @@ def list_users(
     _admin: User = Depends(get_admin_user),
 ):
     users = db.scalars(select(User).order_by(User.name.asc())).all()
-    return [AdminUserRow(id=u.id, name=u.name, email=u.email) for u in users]
+    return [AdminUserRow(id=u.id, name=u.name, email=u.email, entry_paid=bool(u.entry_paid)) for u in users]
+
+
+@router.patch("/users/{user_id}/entry-paid", response_model=AdminUserRow)
+def set_user_entry_paid(
+    user_id: uuid.UUID,
+    body: EntryPaidUpdate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    user = user_repo.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    user.entry_paid = body.entry_paid
+    db.commit()
+    db.refresh(user)
+    return AdminUserRow(id=user.id, name=user.name, email=user.email, entry_paid=bool(user.entry_paid))
 
 
 @router.get("/allowed-emails", response_model=list[AllowedEmailRow])

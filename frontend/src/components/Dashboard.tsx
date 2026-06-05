@@ -265,43 +265,50 @@ export function Dashboard() {
         <div className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{loadError}</div>
       ) : null}
 
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="h-full rounded-xl border border-slate-700 bg-card p-4">
-          <h2 className="text-lg font-semibold text-white">Premio</h2>
-          {pool ? (
-            <>
-              <p className="mt-2 text-xl font-bold text-primary">{pool.label}</p>
-              <p className="mt-1 text-3xl font-extrabold">{pool.prize_display_usd}</p>
-              {pool.pool_total_usd > 0 ? (
-                <p className="mt-1 text-xs text-slate-500">Total del pozo: {pool.pool_total_usd.toLocaleString("es")} USD</p>
-              ) : null}
-              <dl className="mt-4 grid grid-cols-3 gap-3 text-center text-sm">
-                <div>
-                  <dt className="text-slate-400">Jugadores</dt>
-                  <dd className="font-semibold">{pool.total_users}</dd>
+      <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl border border-slate-700 bg-card p-3">
+            <h2 className="text-sm font-semibold text-slate-400">Premio</h2>
+            {pool ? (
+              <>
+                <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <p className="text-2xl font-extrabold text-white">{pool.prize_display_usd}</p>
+                  <p className="text-sm font-medium text-primary">{pool.label}</p>
                 </div>
-                <div>
-                  <dt className="text-slate-400">Apuestas</dt>
-                  <dd className="font-semibold">{pool.total_bets_placed}</dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400">Puntos repartidos</dt>
-                  <dd className="font-semibold">{pool.total_points_awarded}</dd>
-                </div>
-              </dl>
-              <p className="mt-4 text-xs text-slate-500">El primero del ranking se lleva el premio.</p>
-            </>
-          ) : (
-            <p className="mt-2 text-slate-500">Cargando…</p>
-          )}
+                {pool.pool_total_usd > 0 ? (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Pozo total: {pool.pool_total_usd.toLocaleString("es")} USD
+                  </p>
+                ) : null}
+                <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                  <div className="flex items-baseline gap-1.5">
+                    <dt className="text-slate-500">Jugadores</dt>
+                    <dd className="font-semibold text-slate-200">{pool.total_users}</dd>
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <dt className="text-slate-500">Apuestas</dt>
+                    <dd className="font-semibold text-slate-200">{pool.total_bets_placed}</dd>
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <dt className="text-slate-500">Puntos</dt>
+                    <dd className="font-semibold text-slate-200">{pool.total_points_awarded}</dd>
+                  </div>
+                </dl>
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-slate-500">Cargando…</p>
+            )}
+          </div>
+
+          {selectedDay ? <DailyMessage dateKey={selectedDay} /> : null}
         </div>
 
-        <div className="h-full rounded-xl border border-slate-700 bg-card p-4">
+        <div className="rounded-xl border border-slate-700 bg-card p-4">
           <h2 className="text-lg font-semibold">Ranking</h2>
           {!leaderboardView.hasLeader && leaderboardView.rows.length > 0 ? (
             <p className="mt-1 text-xs text-slate-500">Aún no hay puntos — el podio aparece cuando se resuelvan partidos.</p>
           ) : null}
-          <div className="mt-3 overflow-hidden rounded-lg border border-slate-800">
+          <div className="mt-3 overflow-x-auto rounded-lg border border-slate-800">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-900/60 text-slate-400">
                 <tr>
@@ -311,6 +318,7 @@ export function Dashboard() {
                   <th className="px-3 py-2 text-right">Apuestas</th>
                   <th className="px-3 py-2 text-right">Aciertos</th>
                   <th className="px-3 py-2 text-right">Errores</th>
+                  <th className="px-3 py-2 text-center">Cuota</th>
                 </tr>
               </thead>
               <AnimatePresence mode="wait">
@@ -346,6 +354,13 @@ export function Dashboard() {
                     <td className="px-3 py-2 text-right tabular-nums text-slate-300">{row.total_bets}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{row.correct_bets}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-400">{row.incorrect_bets}</td>
+                    <td className="px-3 py-2 text-center">
+                      {row.entry_paid ? (
+                        <span className="text-emerald-400" title="Cuota pagada">✓</span>
+                      ) : (
+                        <span className="text-slate-500" title="Cuota pendiente">—</span>
+                      )}
+                    </td>
                   </motion.tr>
                 ))}
               </motion.tbody>
@@ -357,8 +372,6 @@ export function Dashboard() {
 
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
         <div className="min-w-0 flex-1 space-y-8">
-          {selectedDay ? <DailyMessage dateKey={selectedDay} /> : null}
-
           {recent.length > 0 && selectedDay ? (
             <MatchDayPicker
               dates={matchDays}
