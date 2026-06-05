@@ -10,6 +10,7 @@ from app.database import engine, Base
 import app.models  # noqa: F401 — register all ORM tables with Base.metadata
 from app.routers import admin, auth, bets, community, jobs, leaderboard, matches, pool, profile, social, time_state
 from app.seed import seed_matches_if_empty
+from app.services.allowlist_service import seed_allowlist_if_empty
 
 # Serialize DDL across Gunicorn workers (parallel lifespan would race on create_all).
 _PG_BOOTSTRAP_LOCK_1 = 893_721
@@ -33,6 +34,7 @@ def _bootstrap_db() -> None:
             conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS teams_resolved BOOLEAN DEFAULT TRUE"))
             db = Session(bind=conn, close_resets_only=True)
             try:
+                seed_allowlist_if_empty(db)
                 seed_matches_if_empty(db)
             finally:
                 db.close()

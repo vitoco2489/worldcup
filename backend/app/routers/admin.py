@@ -12,6 +12,8 @@ from app.models.user import User
 from app.repositories import match_repo
 from app.schemas.admin import (
     AdminUserRow,
+    AllowedEmailCreate,
+    AllowedEmailRow,
     CsvRowError,
     FinishedMatchTable,
     LockBetsResponse,
@@ -42,6 +44,7 @@ from app.schemas.pool import PoolPublic
 from app.services import (
     admin_match_service,
     admin_ops_service,
+    allowlist_service,
     bet_service,
     clock_service,
     match_service,
@@ -63,6 +66,46 @@ def list_users(
 ):
     users = db.scalars(select(User).order_by(User.name.asc())).all()
     return [AdminUserRow(id=u.id, name=u.name, email=u.email) for u in users]
+
+
+@router.get("/allowed-emails", response_model=list[AllowedEmailRow])
+def list_allowed_emails(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    rows = allowlist_service.list_allowed(db)
+    return [
+        AllowedEmailRow(email=r.email, note=r.note, created_at=r.created_at)
+        for r in rows
+    ]
+
+
+@router.post("/allowed-emails", response_model=AllowedEmailRow)
+def add_allowed_email(
+    body: AllowedEmailCreate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    try:
+        row = allowlist_service.add_allowed(db, body.email, note=body.note)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    db.commit()
+    return AllowedEmailRow(email=row.email, note=row.note, created_at=row.created_at)
+
+
+@router.delete("/allowed-emails/{email}")
+def remove_allowed_email(
+    email: str,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    try:
+        allowlist_service.remove_allowed(db, email)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/load-schedule", response_model=ScheduleLoadResponse)

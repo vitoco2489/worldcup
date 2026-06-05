@@ -160,3 +160,14 @@ class FinishedMatchTable(BaseModel):
     score_home: int
     score_away: int
     rows: list[FinishedMatchBetRow]
+
+
+class AllowedEmailRow(BaseModel):
+    email: str
+    note: str | None = None
+    created_at: datetime
+
+
+class AllowedEmailCreate(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    note: str | None = Field(default=None, max_length=128)

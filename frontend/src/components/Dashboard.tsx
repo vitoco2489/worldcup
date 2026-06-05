@@ -158,13 +158,17 @@ export function Dashboard() {
     return (
       <div className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-4 py-8 text-center">
         <h1 className="text-3xl font-bold tracking-tight">VitoBet — Mundial 2026</h1>
-        <p className="mt-2 text-sm text-slate-400">Polla privada entre amigos. Inicia sesión para ver partidos, resultados y ranking.</p>
+        <p className="mt-2 text-sm text-slate-400">Polla privada entre amigos. Solo invitados con Google pueden entrar.</p>
         <div className="mt-6">
           <GoogleLogin
             onSuccess={async (cred) => {
               if (!cred.credential) return;
-              await loginWithGoogle(cred.credential);
-              setTok(getToken());
+              try {
+                await loginWithGoogle(cred.credential);
+                setTok(getToken());
+              } catch (e) {
+                setLoadError(e instanceof Error ? e.message : "Error al iniciar sesión con Google");
+              }
             }}
             onError={() => setLoadError("Error al iniciar sesión con Google")}
             useOneTap={false}
@@ -243,8 +247,12 @@ export function Dashboard() {
             <GoogleLogin
               onSuccess={async (cred) => {
                 if (!cred.credential) return;
-                await loginWithGoogle(cred.credential);
-                setTok(getToken());
+                try {
+                  await loginWithGoogle(cred.credential);
+                  setTok(getToken());
+                } catch (e) {
+                  setLoadError(e instanceof Error ? e.message : "Error al iniciar sesión con Google");
+                }
               }}
               onError={() => setLoadError("Error al iniciar sesión con Google")}
               useOneTap={false}

@@ -1,3 +1,4 @@
+from app.models.allowed_email import AllowedEmail
 from app.models.bet import Bet
 from app.models.match import Match
 from app.models.pool_settings import PoolSettings
@@ -6,6 +7,7 @@ from app.models.simulation_snapshot import SimulationBetSnapshot, SimulationMatc
 from app.models.user import User
 
 __all__ = [
+    "AllowedEmail",
     "Bet",
     "Match",
     "PoolSettings",

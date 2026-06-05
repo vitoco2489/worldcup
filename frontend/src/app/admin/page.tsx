@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type {
+  AllowedEmailRow,
   Pool,
   ResetAllDataResponse,
   ResetBetsResponse,
@@ -26,7 +27,9 @@ type ActionKey =
   | "reset_all_data"
   | "reset_bets"
   | "reset_matches"
-  | "load_schedule";
+  | "load_schedule"
+  | "add_allowed"
+  | "remove_allowed";
 
 const ADMIN_EMAIL = "vitoco2489@gmail.com";
 
@@ -44,6 +47,9 @@ export default function AdminPage() {
   const [resetConfirmText, setResetConfirmText] = useState("");
   const [deleteBetsConfirmText, setDeleteBetsConfirmText] = useState("");
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState("");
+  const [allowedEmails, setAllowedEmails] = useState<AllowedEmailRow[]>([]);
+  const [newInviteEmail, setNewInviteEmail] = useState("");
+  const [newInviteNote, setNewInviteNote] = useState("");
   const [loadingAction, setLoadingAction] = useState<ActionKey | null>(null);
 
   const isLoading = (k: ActionKey) => loadingAction === k;
@@ -54,13 +60,18 @@ export default function AdminPage() {
       router.replace("/");
       return;
     }
-    const [u, p] = await Promise.all([fetchMe(), apiFetch<Pool>("/pool")]);
+    const [u, p, allowed] = await Promise.all([
+      fetchMe(),
+      apiFetch<Pool>("/pool"),
+      apiFetch<AllowedEmailRow[]>("/admin/allowed-emails"),
+    ]);
     if (u.email.toLowerCase() !== ADMIN_EMAIL) {
       router.replace("/");
       return;
     }
     setMe(u);
     setPool(p);
+    setAllowedEmails(allowed);
     setPoolInput(String(p.pool_total_usd ?? 0));
   }, [router]);
 
@@ -70,6 +81,46 @@ export default function AdminPage() {
       router.replace("/");
     });
   }, [load, router]);
+
+  async function addAllowedEmail() {
+    const email = newInviteEmail.trim();
+    if (!email) {
+      toast.error("Ingresa un correo.");
+      return;
+    }
+    setLoadingAction("add_allowed");
+    try {
+      const row = await apiFetch<AllowedEmailRow>("/admin/allowed-emails", {
+        method: "POST",
+        body: JSON.stringify({ email, note: newInviteNote.trim() || null }),
+      });
+      setAllowedEmails((prev) => {
+        const next = prev.filter((r) => r.email !== row.email);
+        return [...next, row].sort((a, b) => a.email.localeCompare(b.email));
+      });
+      setNewInviteEmail("");
+      setNewInviteNote("");
+      toast.success("Invitado agregado");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo agregar");
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
+  async function removeAllowedEmail(email: string) {
+    if (!window.confirm(`¿Quitar acceso a ${email}?`)) return;
+    setLoadingAction("remove_allowed");
+    try {
+      await apiFetch(`/admin/allowed-emails/${encodeURIComponent(email)}`, { method: "DELETE" });
+      setAllowedEmails((prev) => prev.filter((r) => r.email !== email));
+      toast.success("Acceso revocado");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo quitar");
+    } finally {
+      setLoadingAction(null);
+    }
+  }
 
   async function savePool() {
     const n = parseInt(poolInput, 10);
@@ -296,6 +347,69 @@ export default function AdminPage() {
       </header>
 
       <div className="space-y-6">
+        <section className="rounded-xl border border-sky-500/35 bg-card p-4 space-y-3">
+          <p className="font-semibold text-sky-200">Invitados (control de acceso)</p>
+          <p className="text-xs text-slate-400">
+            Solo los correos de esta lista pueden iniciar sesión. Agrega el Gmail de cada amigo antes de compartir el link.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <label className="flex flex-1 flex-col gap-1 text-xs text-slate-400">
+              Correo Gmail
+              <input
+                type="email"
+                value={newInviteEmail}
+                onChange={(e) => setNewInviteEmail(e.target.value)}
+                placeholder="amigo@gmail.com"
+                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-xs text-slate-400">
+              Nota (opcional)
+              <input
+                type="text"
+                value={newInviteNote}
+                onChange={(e) => setNewInviteNote(e.target.value)}
+                placeholder="Marco"
+                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={isLoading("add_allowed")}
+              onClick={() => void addAllowedEmail()}
+              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {isLoading("add_allowed") ? "Agregando…" : "Agregar invitado"}
+            </button>
+          </div>
+          <ul className="divide-y divide-slate-800 rounded-lg border border-slate-700">
+            {allowedEmails.length === 0 ? (
+              <li className="px-3 py-3 text-sm text-slate-500">Sin invitados cargados.</li>
+            ) : (
+              allowedEmails.map((row) => (
+                <li key={row.email} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-slate-100">{row.email}</p>
+                    {row.note ? <p className="text-xs text-slate-500">{row.note}</p> : null}
+                  </div>
+                  {row.email.toLowerCase() === ADMIN_EMAIL ? (
+                    <span className="shrink-0 text-xs text-slate-500">Admin</span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isLoading("remove_allowed")}
+                      onClick={() => void removeAllowedEmail(row.email)}
+                      className="shrink-0 rounded border border-danger/40 px-2 py-1 text-xs text-danger hover:bg-danger/10"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+
         <section className="rounded-xl border border-primary/30 bg-card/50 p-4">
           <p className="text-base font-semibold text-primary">Gestor de partidos</p>
           <p className="mt-1 text-sm text-slate-400">Administra marcadores y estados en la página dedicada.</p>

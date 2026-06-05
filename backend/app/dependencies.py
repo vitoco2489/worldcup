@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.repositories import user_repo
+from app.services.allowlist_service import EmailNotAllowedError, assert_email_allowed
 from app.utils.admin import is_admin_email
 from app.utils.jwt_tokens import decode_access_token
 
@@ -40,6 +41,10 @@ def require_user(db: Session, user_id: uuid.UUID):
     user = user_repo.get_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    try:
+        assert_email_allowed(db, user.email)
+    except EmailNotAllowedError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
     return user
 
 

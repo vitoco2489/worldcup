@@ -139,6 +139,12 @@ export type WallHighlights = {
   shame: WallEntry[];
 };
 
+export type AllowedEmailRow = {
+  email: string;
+  note: string | null;
+  created_at: string;
+};
+
 export type AdminUserRow = {
   id: string;
   name: string;

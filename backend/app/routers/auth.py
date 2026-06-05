@@ -6,6 +6,7 @@ from app.dependencies import get_current_user_id, require_user
 from app.repositories import user_repo
 from app.schemas.auth import LoginRequest, TokenResponse, UserPublic
 from app.services import auth_service
+from app.services.allowlist_service import EmailNotAllowedError
 from app.utils.admin import is_admin_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -15,6 +16,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def login(body: LoginRequest, db: Session = Depends(get_db)):
     try:
         token, _user = auth_service.login_with_google_id_token(db, body.id_token)
+    except EmailNotAllowedError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return TokenResponse(access_token=token)
