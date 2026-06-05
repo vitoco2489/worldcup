@@ -265,10 +265,16 @@ export function Dashboard() {
         <div className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{loadError}</div>
       ) : null}
 
-      <p className="rounded-lg border border-sky-500/25 bg-sky-500/5 px-3 py-2 text-sm text-sky-100/90">
-        ⏱ Las apuestas de cada partido se cierran{" "}
-        <span className="font-semibold text-sky-50">5 minutos antes</span> del pitido inicial.
-      </p>
+      <div className="space-y-1 rounded-lg border border-sky-500/25 bg-sky-500/5 px-3 py-2 text-sm text-sky-100/90">
+        <p>
+          ⏱ Las apuestas de cada partido se cierran{" "}
+          <span className="font-semibold text-sky-50">5 minutos antes</span> del pitido inicial.
+        </p>
+        <p>
+          ⚽ El resultado válido es el marcador al minuto{" "}
+          <span className="font-semibold text-sky-50">90</span> (tiempo reglamentario — sin prórroga ni penales).
+        </p>
+      </div>
 
       <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-4">
@@ -359,11 +365,17 @@ export function Dashboard() {
                     <td className="px-3 py-2 text-right tabular-nums text-slate-300">{row.total_bets}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{row.correct_bets}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-400">{row.incorrect_bets}</td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-2 py-2 text-center">
                       {row.entry_paid ? (
-                        <span className="text-emerald-400" title="Cuota pagada">✓</span>
+                        <span className="inline-flex items-center justify-center gap-1 text-xs font-medium text-emerald-400">
+                          <span aria-hidden className="text-sm leading-none">✓</span>
+                          Cuota pagada
+                        </span>
                       ) : (
-                        <span className="text-slate-500" title="Cuota pendiente">—</span>
+                        <span className="inline-flex items-center justify-center gap-1 text-xs font-medium text-red-400">
+                          <span aria-hidden className="text-sm leading-none">✗</span>
+                          Pendiente
+                        </span>
                       )}
                     </td>
                   </motion.tr>
@@ -454,6 +466,7 @@ export function Dashboard() {
               <li>+2 → marcador exacto</li>
               <li>Máximo: 5 puntos por partido</li>
               <li className="pt-1 text-sky-200/80">Cierre de apuestas: 5 min antes del pitido</li>
+              <li className="text-sky-200/80">Resultado: marcador a los 90 min (sin alargue ni penales)</li>
             </ul>
           </div>
           <h2 className="text-lg font-semibold text-white">Apuestas del grupo</h2>
