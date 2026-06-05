@@ -24,11 +24,12 @@ export function DailyMessage({ dateKey }: Props) {
   if (!digest || digest.messages.length === 0) return null;
 
   return (
-    <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-      <h2 className="text-sm font-semibold text-amber-200">📣 Mensaje del día</h2>
-      <ul className="mt-2 space-y-1.5 text-sm text-slate-200">
-        {digest.messages.map((msg) => (
-          <li key={msg} className="leading-snug">
+    <section className="rounded-xl border border-amber-500/35 bg-gradient-to-br from-amber-500/10 via-card to-orange-500/5 p-4 shadow-sm">
+      <h2 className="text-sm font-bold tracking-wide text-amber-200">📣 Chisme del día</h2>
+      <p className="mt-0.5 text-xs text-amber-200/60">Sin spoilers — solo vibes de la polla</p>
+      <ul className="mt-3 space-y-2 text-sm text-slate-100">
+        {digest.messages.map((msg, i) => (
+          <li key={`${i}-${msg.slice(0, 24)}`} className="leading-snug rounded-lg bg-black/15 px-2.5 py-1.5">
             {msg}
           </li>
         ))}
