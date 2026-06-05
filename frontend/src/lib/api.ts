@@ -143,6 +143,7 @@ export type AllowedEmailRow = {
   email: string;
   note: string | null;
   created_at: string;
+  is_admin: boolean;
 };
 
 export type AdminUserRow = {

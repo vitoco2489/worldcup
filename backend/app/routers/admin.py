@@ -55,6 +55,7 @@ from app.services import (
     bracket_resolver_service,
 )
 from app.utils.time import get_current_time
+from app.utils.admin import is_admin_email
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -75,7 +76,12 @@ def list_allowed_emails(
 ):
     rows = allowlist_service.list_allowed(db)
     return [
-        AllowedEmailRow(email=r.email, note=r.note, created_at=r.created_at)
+        AllowedEmailRow(
+            email=r.email,
+            note=r.note,
+            created_at=r.created_at,
+            is_admin=is_admin_email(r.email),
+        )
         for r in rows
     ]
 
@@ -91,7 +97,12 @@ def add_allowed_email(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     db.commit()
-    return AllowedEmailRow(email=row.email, note=row.note, created_at=row.created_at)
+    return AllowedEmailRow(
+        email=row.email,
+        note=row.note,
+        created_at=row.created_at,
+        is_admin=is_admin_email(row.email),
+    )
 
 
 @router.delete("/allowed-emails/{email}")

@@ -31,8 +31,6 @@ type ActionKey =
   | "add_allowed"
   | "remove_allowed";
 
-const ADMIN_EMAIL = "vitoco2489@gmail.com";
-
 export default function AdminPage() {
   const router = useRouter();
   const [me, setMe] = useState<UserMe | null>(null);
@@ -65,7 +63,7 @@ export default function AdminPage() {
       apiFetch<Pool>("/pool"),
       apiFetch<AllowedEmailRow[]>("/admin/allowed-emails"),
     ]);
-    if (u.email.toLowerCase() !== ADMIN_EMAIL) {
+    if (!u.is_admin) {
       router.replace("/");
       return;
     }
@@ -392,7 +390,7 @@ export default function AdminPage() {
                     <p className="truncate font-medium text-slate-100">{row.email}</p>
                     {row.note ? <p className="text-xs text-slate-500">{row.note}</p> : null}
                   </div>
-                  {row.email.toLowerCase() === ADMIN_EMAIL ? (
+                  {row.is_admin ? (
                     <span className="shrink-0 text-xs text-slate-500">Admin</span>
                   ) : (
                     <button

@@ -89,7 +89,7 @@ export function Dashboard() {
     void fetchMe().then(setMe).catch(() => setMe(null));
   }, [token]);
 
-  const isHardAdmin = (me?.email || "").toLowerCase() === "vitoco2489@gmail.com";
+  const isAdmin = me?.is_admin === true;
 
   const myBetCards = useMemo(() => {
     return myBets
@@ -223,7 +223,7 @@ export function Dashboard() {
                     <Link onClick={() => setMenuOpen(false)} href="/profile" className="rounded px-2 py-1.5 hover:bg-slate-800">
                       Perfil
                     </Link>
-                    {isHardAdmin ? (
+                    {isAdmin ? (
                       <Link onClick={() => setMenuOpen(false)} href="/admin" className="rounded px-2 py-1.5 hover:bg-slate-800">
                         Admin
                       </Link>

@@ -18,7 +18,6 @@ type MatchDraft = {
   message: string | null;
 };
 
-const ADMIN_EMAIL = "vitoco2489@gmail.com";
 const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
 
 export default function AdminMatchesPage() {
@@ -56,7 +55,7 @@ export default function AdminMatchesPage() {
       apiFetch<Match[]>("/matches"),
       apiFetch<FinishedMatchTable[]>("/admin/finished-matches-table"),
     ]);
-    if (u.email.toLowerCase() !== ADMIN_EMAIL) {
+    if (!u.is_admin) {
       router.replace("/");
       return;
     }

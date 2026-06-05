@@ -166,6 +166,7 @@ class AllowedEmailRow(BaseModel):
     email: str
     note: str | None = None
     created_at: datetime
+    is_admin: bool = False
 
 
 class AllowedEmailCreate(BaseModel):
