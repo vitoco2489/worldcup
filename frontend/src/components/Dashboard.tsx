@@ -324,28 +324,20 @@ export function Dashboard() {
             </p>
           ) : null}
           <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-slate-800 sm:max-h-64">
-            <table className="w-full min-w-[18rem] text-left text-xs">
+            <table className="w-full min-w-[36rem] text-left text-xs">
               <thead className="sticky top-0 z-10 bg-slate-900/95 text-[11px] text-slate-400 backdrop-blur-sm">
                 <tr>
-                  <th className="whitespace-nowrap px-1.5 py-1">#</th>
-                  <th className="px-1.5 py-1">Nombre</th>
-                  <th className="whitespace-nowrap px-1.5 py-1 text-right">Pts</th>
-                  <th className="whitespace-nowrap px-1.5 py-1 text-right" title="Apuestas">
-                    Ap.
-                  </th>
+                  <th className="whitespace-nowrap px-2 py-1.5">#</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">Nombre</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 text-right">Puntos</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 text-right">Apuestas</th>
                   {showHitColumns ? (
                     <>
-                      <th className="whitespace-nowrap px-1.5 py-1 text-right" title="Aciertos">
-                        Ac.
-                      </th>
-                      <th className="whitespace-nowrap px-1.5 py-1 text-right" title="Errores">
-                        Er.
-                      </th>
+                      <th className="whitespace-nowrap px-2 py-1.5 text-right">Aciertos</th>
+                      <th className="whitespace-nowrap px-2 py-1.5 text-right">Errores</th>
                     </>
                   ) : null}
-                  <th className="whitespace-nowrap px-1.5 py-1 text-center" title="Cuota">
-                    $
-                  </th>
+                  <th className="whitespace-nowrap px-2 py-1.5 text-center">Cuota</th>
                 </tr>
               </thead>
               <AnimatePresence mode="wait">
