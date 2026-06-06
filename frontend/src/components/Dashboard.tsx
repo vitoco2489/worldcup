@@ -150,12 +150,7 @@ export function Dashboard() {
   }, [recent, selectedDay]);
 
   const leaderboardView = useMemo(() => buildLeaderboardView(leaderboard), [leaderboard]);
-  const showHitColumns = useMemo(
-    () =>
-      leaderboardView.hasLeader ||
-      leaderboardView.rows.some((r) => r.correct_bets > 0 || r.incorrect_bets > 0),
-    [leaderboardView],
-  );
+  const showHitColumns = leaderboardView.rows.length > 0;
   const leaderId = leaderboardView.hasLeader
     ? (leaderboardView.rows.find((r) => r.displayRank === 1)?.user_id ?? "none")
     : "no-leader";
@@ -282,42 +277,38 @@ export function Dashboard() {
         </p>
       </div>
 
-      <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-        <div className="flex flex-col gap-4">
-          <div className="rounded-xl border border-slate-700 bg-card p-3">
-            <h2 className="text-sm font-semibold text-slate-400">Premio</h2>
-            {pool ? (
-              <>
-                <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <p className="text-2xl font-extrabold text-white">{pool.prize_display_usd}</p>
-                  <p className="text-sm font-medium text-primary">{pool.label}</p>
+      <section className="flex flex-col gap-4">
+        <div className="rounded-xl border border-slate-700 bg-card p-3">
+          <h2 className="text-sm font-semibold text-slate-400">Premio</h2>
+          {pool ? (
+            <>
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="text-2xl font-extrabold text-white">{pool.prize_display_usd}</p>
+                <p className="text-sm font-medium text-primary">{pool.label}</p>
+              </div>
+              {pool.pool_total_usd > 0 ? (
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Pozo total: {pool.pool_total_usd.toLocaleString("es")} USD
+                </p>
+              ) : null}
+              <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="text-slate-500">Jugadores</dt>
+                  <dd className="font-semibold text-slate-200">{pool.total_users}</dd>
                 </div>
-                {pool.pool_total_usd > 0 ? (
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    Pozo total: {pool.pool_total_usd.toLocaleString("es")} USD
-                  </p>
-                ) : null}
-                <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                  <div className="flex items-baseline gap-1.5">
-                    <dt className="text-slate-500">Jugadores</dt>
-                    <dd className="font-semibold text-slate-200">{pool.total_users}</dd>
-                  </div>
-                  <div className="flex items-baseline gap-1.5">
-                    <dt className="text-slate-500">Apuestas</dt>
-                    <dd className="font-semibold text-slate-200">{pool.total_bets_placed}</dd>
-                  </div>
-                  <div className="flex items-baseline gap-1.5">
-                    <dt className="text-slate-500">Puntos</dt>
-                    <dd className="font-semibold text-slate-200">{pool.total_points_awarded}</dd>
-                  </div>
-                </dl>
-              </>
-            ) : (
-              <p className="mt-1 text-sm text-slate-500">Cargando…</p>
-            )}
-          </div>
-
-          {selectedDay ? <DailyMessage dateKey={selectedDay} /> : null}
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="text-slate-500">Apuestas</dt>
+                  <dd className="font-semibold text-slate-200">{pool.total_bets_placed}</dd>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="text-slate-500">Puntos</dt>
+                  <dd className="font-semibold text-slate-200">{pool.total_points_awarded}</dd>
+                </div>
+              </dl>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-slate-500">Cargando…</p>
+          )}
         </div>
 
         <div className="rounded-xl border border-slate-700 bg-card p-3">
@@ -332,7 +323,7 @@ export function Dashboard() {
               Sin puntos aún — podio cuando se resuelvan partidos.
             </p>
           ) : null}
-          <div className="mt-2 max-h-44 overflow-auto rounded-lg border border-slate-800 sm:max-h-48">
+          <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-slate-800 sm:max-h-64">
             <table className="w-full min-w-[18rem] text-left text-xs">
               <thead className="sticky top-0 z-10 bg-slate-900/95 text-[11px] text-slate-400 backdrop-blur-sm">
                 <tr>
@@ -379,7 +370,7 @@ export function Dashboard() {
                     <td className={`whitespace-nowrap px-1.5 py-1 ${leaderboardView.hasLeader && row.displayRank <= 3 ? "text-white" : "text-slate-500"}`}>
                       {rankMarker(row.displayRank, leaderboardView.hasLeader)}
                     </td>
-                    <td className="max-w-[5.5rem] truncate px-1.5 py-1 font-medium sm:max-w-[7rem]" title={row.name}>
+                    <td className="max-w-[8rem] truncate px-1.5 py-1 font-medium sm:max-w-none" title={row.name}>
                       {row.name}
                     </td>
                     <td
@@ -394,8 +385,10 @@ export function Dashboard() {
                     </td>
                     {showHitColumns ? (
                       <>
-                        <td className="whitespace-nowrap px-1.5 py-1 text-right tabular-nums">{row.correct_bets}</td>
-                        <td className="whitespace-nowrap px-1.5 py-1 text-right tabular-nums text-slate-400">
+                        <td className="whitespace-nowrap px-1.5 py-1 text-right tabular-nums text-emerald-400/90">
+                          {row.correct_bets}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1 text-right tabular-nums text-red-400/90">
                           {row.incorrect_bets}
                         </td>
                       </>
@@ -418,6 +411,8 @@ export function Dashboard() {
             </table>
           </div>
         </div>
+
+        {selectedDay ? <DailyMessage dateKey={selectedDay} /> : null}
       </section>
 
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
