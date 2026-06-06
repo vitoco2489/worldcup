@@ -16,6 +16,7 @@ import {
   type MatchBettingPhase,
 } from "@/lib/time";
 import { FootballKick } from "./FootballKick";
+import { BetChoiceBurst } from "./BetChoiceBurst";
 import { MatchMetaBadges } from "./MatchMetaBadges";
 
 const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
@@ -47,6 +48,8 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [kick, setKick] = useState(0);
+  const [choiceBurst, setChoiceBurst] = useState(0);
+  const [burstChoice, setBurstChoice] = useState<"home" | "away" | "draw">("home");
   const [localPrediction, setLocalPrediction] = useState<string | null>(existingBet?.prediction ?? null);
   const [scoreHome, setScoreHome] = useState("");
   const [scoreAway, setScoreAway] = useState("");
@@ -179,6 +182,8 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
       }
     }
     setSaving(true);
+    setBurstChoice(effective);
+    setChoiceBurst((k) => k + 1);
     try {
       await apiFetch("/bets", {
         method: "POST",
@@ -213,6 +218,12 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
       className={`relative overflow-hidden rounded-xl border bg-card p-4 transition-colors duration-300 ${border}`}
     >
       <FootballKick pulse={kick} />
+      <BetChoiceBurst
+        pulse={choiceBurst}
+        choice={burstChoice}
+        homeCode={match.team_home_code}
+        awayCode={match.team_away_code}
+      />
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-1 flex-col gap-3">
           <MatchMetaBadges groupName={match.group_name} round={match.round} />
@@ -279,15 +290,18 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
 
       <div className="mt-4 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-2">
         {canBet && impliedOutcome ? (
-          <button
+          <motion.button
             type="button"
+            layout
             disabled={saving}
+            whileTap={saving ? undefined : { scale: 0.96 }}
+            whileHover={saving ? undefined : { scale: 1.02, y: -1 }}
             onClick={() => void save(impliedOutcome)}
             className={`col-span-3 rounded-lg border px-4 py-2.5 text-sm font-semibold transition sm:col-auto ${
               localPrediction === impliedOutcome
                 ? "cursor-pointer border-primary bg-primary/25 text-primary ring-2 ring-primary/45"
                 : "cursor-pointer border-slate-500 bg-slate-800 text-white ring-1 ring-slate-600/60 hover:border-primary/40 hover:bg-slate-700"
-            } ${saving ? "cursor-not-allowed opacity-50" : "active:scale-[0.98]"}`}
+            } ${saving ? "cursor-not-allowed opacity-50" : ""}`}
           >
             {saving ? (
               <span className="inline-flex items-center gap-2">
@@ -305,7 +319,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
                 (según marcador)
               </>
             )}
-          </button>
+          </motion.button>
         ) : canBet ? (
           (["home", "draw", "away"] as const).map((p) => {
             const isSel = localPrediction === p;
@@ -313,17 +327,31 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
             const label =
               p === "home" ? match.team_home.slice(0, 14) : p === "away" ? match.team_away.slice(0, 14) : "Empate";
             return (
-              <button
+              <motion.button
                 key={p}
                 type="button"
+                layout
                 disabled={disabled}
+                whileTap={disabled ? undefined : { scale: 0.92 }}
+                whileHover={disabled ? undefined : { scale: 1.04, y: -2 }}
                 onClick={() => void save(p)}
-                className={`min-h-[44px] rounded-lg border px-2 py-2.5 text-sm font-semibold transition sm:px-4 ${
+                className={`relative min-h-[44px] overflow-hidden rounded-lg border px-2 py-2.5 text-sm font-semibold transition sm:px-4 ${
                   isSel
-                    ? "cursor-pointer border-primary bg-primary/20 text-primary ring-2 ring-primary/50 shadow-[0_0_12px_rgba(34,197,94,0.15)]"
+                    ? "cursor-pointer border-primary bg-primary/20 text-primary ring-2 ring-primary/50 shadow-[0_0_16px_rgba(34,197,94,0.2)]"
                     : "cursor-pointer border-slate-500 bg-slate-800/90 text-white ring-1 ring-slate-600/60 shadow-sm hover:border-primary/45 hover:bg-slate-700 hover:text-white"
-                } ${disabled ? "cursor-not-allowed opacity-50" : "active:scale-[0.98]"}`}
+                } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
               >
+                {burstChoice === p && choiceBurst > 0 ? (
+                  <motion.span
+                    key={choiceBurst}
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-primary/15"
+                    initial={{ opacity: 0.7, scale: 0.85 }}
+                    animate={{ opacity: 0, scale: 1.35 }}
+                    transition={{ duration: 0.5 }}
+                  />
+                ) : null}
+                <span className="relative z-[1]">
                 {saving ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -332,7 +360,8 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
                 ) : (
                   label
                 )}
-              </button>
+                </span>
+              </motion.button>
             );
           })
         ) : null}
