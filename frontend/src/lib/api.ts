@@ -1,4 +1,8 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/** Browser: same-origin /api (nginx → backend). Dev SSR: direct backend URL. */
+function getApiBase(): string {
+  if (typeof window !== "undefined") return "/api";
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+}
 
 const TOKEN_KEY = "wc_pool_token";
 
@@ -222,7 +226,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   if (token && !path.startsWith("/auth/login")) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const res = await fetch(`${getApiBase()}${path}`, { ...init, headers });
   if (!res.ok) await handleJsonError(res);
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -232,7 +236,7 @@ export async function apiPostMultipart<T>(path: string, form: FormData): Promise
   const token = getToken();
   const headers = new Headers();
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: form });
+  const res = await fetch(`${getApiBase()}${path}`, { method: "POST", headers, body: form });
   if (!res.ok) await handleJsonError(res);
   return res.json() as Promise<T>;
 }
@@ -252,7 +256,7 @@ export async function fetchMe(): Promise<UserMe> {
 
 /** Public; no auth. Used to align countdowns with server / simulated clock. */
 export async function fetchServerTime(): Promise<ServerTimeResponse> {
-  const res = await fetch(`${API_BASE}/time`);
+  const res = await fetch(`${getApiBase()}/time`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || res.statusText);
