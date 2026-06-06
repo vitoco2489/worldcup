@@ -37,13 +37,13 @@ export function BetChoiceBurst({ pulse, choice, homeCode, awayCode }: Props) {
               scale: [0.5, 1.2, 1.05, 0.85],
               y: [8, -28, -52, -68],
             }}
-            transition={{ duration: 0.75, ease: [0.22, 0.95, 0.35, 1] }}
+            transition={{ duration: 1.2, ease: [0.22, 0.95, 0.35, 1] }}
           >
             {choice === "draw" ? (
               <motion.span
                 className="text-3xl select-none"
                 animate={{ rotate: [0, -8, 8, -4, 0] }}
-                transition={{ duration: 0.45, delay: 0.05 }}
+                transition={{ duration: 0.75, delay: 0.08 }}
               >
                 🤝
               </motion.span>

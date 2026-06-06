@@ -22,7 +22,7 @@ export function FootballKick({ pulse }: Props) {
               x: [0, 16, 34],
               y: [0, -40, -86],
             }}
-            transition={{ duration: 0.85, ease: [0.25, 0.9, 0.35, 1] }}
+            transition={{ duration: 1.25, ease: [0.25, 0.9, 0.35, 1] }}
           >
             ⚽
           </motion.span>

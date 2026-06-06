@@ -107,6 +107,38 @@ export type UserStats = {
   exact_score_hits: number;
 };
 
+export type UserBetHistoryItem = {
+  bet_id: string;
+  match_id: string;
+  team_home: string;
+  team_away: string;
+  team_home_code: string;
+  team_away_code: string;
+  start_time: string;
+  score_home: number | null;
+  score_away: number | null;
+  match_finished: boolean;
+  prediction: string;
+  predicted_score_home: number | null;
+  predicted_score_away: number | null;
+  resolved: boolean;
+  points_awarded: number | null;
+  correct: boolean | null;
+  exact_score_hit: boolean | null;
+};
+
+export type UserBetHistory = {
+  user_id: string;
+  name: string;
+  total_points: number;
+  correct_predictions: number;
+  incorrect_predictions: number;
+  exact_score_hits: number;
+  total_bets: number;
+  resolved: UserBetHistoryItem[];
+  pending: UserBetHistoryItem[];
+};
+
 export type DailyDigest = {
   date: string;
   messages: string[];

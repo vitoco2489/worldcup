@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.dependencies import get_current_user_id, require_user
 from app.models.bet import Bet
+from app.models.match import Match
 from app.schemas.bet import BetCreate, BetPublic
 from app.services import bet_service
 
@@ -18,7 +19,11 @@ def my_bets(
 ):
     require_user(db, user_id)
     bets = db.scalars(
-        select(Bet).options(joinedload(Bet.match)).where(Bet.user_id == user_id).order_by(Bet.updated_at.desc())
+        select(Bet)
+        .join(Match, Bet.match_id == Match.id)
+        .options(joinedload(Bet.match))
+        .where(Bet.user_id == user_id)
+        .order_by(Match.start_time.asc())
     ).unique().all()
     return [bet_service.bet_to_public(b, b.match, db=db) for b in bets]
 

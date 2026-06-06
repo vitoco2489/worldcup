@@ -13,6 +13,7 @@ import { CommunityBets } from "./CommunityBets";
 import { MatchCard } from "./MatchCard";
 import { MatchDayPicker } from "./MatchDayPicker";
 import { DailyMessage } from "./DailyMessage";
+import { PlayerHistoryModal } from "./PlayerHistoryModal";
 
 export function Dashboard() {
   const { effectiveNowMs, isSimulated, resync } = useEffectiveNow();
@@ -28,6 +29,7 @@ export function Dashboard() {
   const [community, setCommunity] = useState<CommunityMatchRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [historyPlayer, setHistoryPlayer] = useState<{ id: string; name: string } | null>(null);
 
   const refreshPublic = useCallback(async () => {
     const [upcomingList, lb, p, comm] = await Promise.all([
@@ -98,7 +100,11 @@ export function Dashboard() {
         if (!m) return null;
         return { bet: b, match: m };
       })
-      .filter(Boolean) as { bet: Bet; match: Match }[];
+      .filter(Boolean)
+      .sort((a, b) => new Date(a!.match.start_time).getTime() - new Date(b!.match.start_time).getTime()) as {
+      bet: Bet;
+      match: Match;
+    }[];
   }, [myBets, matchById]);
 
   const communityDashboard = useMemo(
@@ -130,8 +136,12 @@ export function Dashboard() {
   }, [matchDays, selectedDay, effectiveNowMs]);
 
   const upcomingNoBetDay = useMemo(() => {
-    if (!selectedDay) return upcomingNoBet;
-    return upcomingNoBet.filter((m) => localDateKey(m.start_time) === selectedDay);
+    const list = !selectedDay
+      ? upcomingNoBet
+      : upcomingNoBet.filter((m) => localDateKey(m.start_time) === selectedDay);
+    return [...list].sort(
+      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+    );
   }, [upcomingNoBet, selectedDay]);
 
   const myBetCardsDay = useMemo(() => {
@@ -362,8 +372,15 @@ export function Dashboard() {
                     <td className={`whitespace-nowrap px-1.5 py-1 ${leaderboardView.hasLeader && row.displayRank <= 3 ? "text-white" : "text-slate-500"}`}>
                       {rankMarker(row.displayRank, leaderboardView.hasLeader)}
                     </td>
-                    <td className="max-w-[8rem] truncate px-1.5 py-1 font-medium sm:max-w-none" title={row.name}>
-                      {row.name}
+                    <td className="max-w-[8rem] truncate px-1.5 py-1 font-medium sm:max-w-none">
+                      <button
+                        type="button"
+                        onClick={() => setHistoryPlayer({ id: row.user_id, name: row.name })}
+                        className="truncate text-left text-primary hover:underline"
+                        title={`Ver historial de ${row.name}`}
+                      >
+                        {row.name}
+                      </button>
                     </td>
                     <td
                       className={`whitespace-nowrap px-1.5 py-1 text-right tabular-nums ${
@@ -499,6 +516,14 @@ export function Dashboard() {
       </div>
 
       <div className="pb-8" />
+
+      {historyPlayer ? (
+        <PlayerHistoryModal
+          userId={historyPlayer.id}
+          userName={historyPlayer.name}
+          onClose={() => setHistoryPlayer(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import engine, Base
 import app.models  # noqa: F401 — register all ORM tables with Base.metadata
-from app.routers import admin, auth, bets, community, jobs, leaderboard, matches, pool, profile, social, time_state
+from app.routers import admin, auth, bets, community, jobs, leaderboard, matches, pool, profile, social, time_state, users
 from app.seed import seed_matches_if_empty
 from app.services.allowlist_service import seed_allowlist_if_empty
 
@@ -72,6 +72,7 @@ app.include_router(bets.router)
 app.include_router(leaderboard.router)
 app.include_router(pool.router)
 app.include_router(profile.router)
+app.include_router(users.router)
 app.include_router(social.router)
 app.include_router(jobs.router)
 

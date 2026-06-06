@@ -196,7 +196,11 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
       });
       setLocalPrediction(effective);
       setKick((k) => k + 1);
-      onBetSaved?.();
+      if (existingBet) {
+        onBetSaved?.();
+      } else {
+        window.setTimeout(() => onBetSaved?.(), 1300);
+      }
       toast.success("Apuesta guardada ⚽");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "No se pudo guardar la apuesta";
@@ -213,7 +217,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
 
   return (
     <motion.div
-      layout
+      layout="position"
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
       className={`relative overflow-hidden rounded-xl border bg-card p-4 transition-colors duration-300 ${border}`}
     >
@@ -348,7 +352,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
                     className="pointer-events-none absolute inset-0 bg-primary/15"
                     initial={{ opacity: 0.7, scale: 0.85 }}
                     animate={{ opacity: 0, scale: 1.35 }}
-                    transition={{ duration: 0.5 }}
+                    transition={{ duration: 0.85 }}
                   />
                 ) : null}
                 <span className="relative z-[1]">
