@@ -18,7 +18,7 @@ def _bet_item(bet: Bet) -> UserBetHistoryItem:
     finished = m.score_home is not None and m.score_away is not None
     correct: bool | None = None
     exact: bool | None = None
-    if bet.resolved and finished:
+    if finished:
         outcome = match_result_prediction(m)
         if outcome is not None:
             correct = bet.prediction == outcome
@@ -54,29 +54,29 @@ def user_bet_history(db: Session, user_id: uuid.UUID) -> UserBetHistoryPublic:
             select(Bet)
             .join(Match, Bet.match_id == Match.id)
             .options(joinedload(Bet.match))
-            .where(Bet.user_id == user_id)
+            .where(
+                Bet.user_id == user_id,
+                Match.score_home.is_not(None),
+                Match.score_away.is_not(None),
+            )
             .order_by(Match.start_time.desc())
         ).unique().all()
     )
 
-    resolved_items: list[UserBetHistoryItem] = []
-    pending_items: list[UserBetHistoryItem] = []
+    items: list[UserBetHistoryItem] = []
     correct_predictions = 0
     incorrect_predictions = 0
     exact_score_hits = 0
 
     for bet in bets:
         item = _bet_item(bet)
-        if bet.resolved and item.match_finished:
-            resolved_items.append(item)
-            if item.correct is True:
-                correct_predictions += 1
-            elif item.correct is False:
-                incorrect_predictions += 1
-            if item.exact_score_hit:
-                exact_score_hits += 1
-        else:
-            pending_items.append(item)
+        items.append(item)
+        if item.correct is True:
+            correct_predictions += 1
+        elif item.correct is False:
+            incorrect_predictions += 1
+        if item.exact_score_hit:
+            exact_score_hits += 1
 
     total_points = (
         db.scalar(
@@ -95,7 +95,7 @@ def user_bet_history(db: Session, user_id: uuid.UUID) -> UserBetHistoryPublic:
         correct_predictions=correct_predictions,
         incorrect_predictions=incorrect_predictions,
         exact_score_hits=exact_score_hits,
-        total_bets=len(bets),
-        resolved=resolved_items,
-        pending=pending_items,
+        total_bets=len(items),
+        resolved=items,
+        pending=[],
     )
