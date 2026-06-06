@@ -13,6 +13,15 @@ export function formatLocal(iso: string): string {
 }
 
 export const LOCK_BEFORE_START_MINUTES = 5;
+export const URGENT_BET_WINDOW_HOURS = 2;
+
+export function isWithinBetUrgentWindow(startIso: string, nowMs: number = Date.now()): boolean {
+  const start = parseUtc(startIso).getTime();
+  const msUntilStart = start - nowMs;
+  const lockMs = LOCK_BEFORE_START_MINUTES * 60 * 1000;
+  const windowMs = URGENT_BET_WINDOW_HOURS * 60 * 60 * 1000;
+  return msUntilStart > lockMs && msUntilStart <= windowMs;
+}
 
 export function lockDeadlineMs(startIso: string): number {
   const start = parseUtc(startIso).getTime();

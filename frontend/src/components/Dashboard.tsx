@@ -3,17 +3,19 @@
 import { GoogleLogin } from "@react-oauth/google";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { Bet, CommunityMatchRow, LeaderboardRow, Match, Pool, UserMe } from "@/lib/api";
 import { apiFetch, fetchMe, getToken, loginWithGoogle, setToken } from "@/lib/api";
 import { useEffectiveNow } from "@/hooks/useEffectiveNow";
-import { defaultUpcomingDayKey, localDateKey } from "@/lib/time";
+import { defaultUpcomingDayKey, isWithinBetUrgentWindow, localDateKey } from "@/lib/time";
 import { buildLeaderboardView, rankMarker, rowHighlightClass } from "@/lib/leaderboard";
 import { CommunityBets } from "./CommunityBets";
 import { MatchCard } from "./MatchCard";
 import { MatchDayPicker } from "./MatchDayPicker";
 import { DailyMessage } from "./DailyMessage";
 import { PlayerHistoryModal } from "./PlayerHistoryModal";
+import { UrgentBetAlert } from "./UrgentBetAlert";
 
 export function Dashboard() {
   const { effectiveNowMs, isSimulated, resync } = useEffectiveNow();
@@ -30,6 +32,8 @@ export function Dashboard() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [historyPlayer, setHistoryPlayer] = useState<{ id: string; name: string } | null>(null);
+  const [urgentBannerDismissed, setUrgentBannerDismissed] = useState(false);
+  const urgentToastShown = useRef(false);
 
   const refreshPublic = useCallback(async () => {
     const [upcomingList, lb, p, comm] = await Promise.all([
@@ -76,6 +80,10 @@ export function Dashboard() {
   useEffect(() => {
     setTok(getToken());
   }, []);
+
+  useEffect(() => {
+    if (!token) urgentToastShown.current = false;
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -143,6 +151,31 @@ export function Dashboard() {
       (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
     );
   }, [upcomingNoBet, selectedDay]);
+
+  const urgentUnbet = useMemo(
+    () =>
+      [...upcomingNoBet]
+        .filter((m) => isWithinBetUrgentWindow(m.start_time, effectiveNowMs))
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()),
+    [upcomingNoBet, effectiveNowMs],
+  );
+
+  const urgentKey = urgentUnbet.map((m) => m.id).join(",");
+
+  useEffect(() => {
+    setUrgentBannerDismissed(false);
+  }, [urgentKey]);
+
+  useEffect(() => {
+    if (!token || urgentUnbet.length === 0 || urgentToastShown.current) return;
+    urgentToastShown.current = true;
+    toast.warning(
+      urgentUnbet.length === 1
+        ? "Tienes 1 partido sin apostar que empieza en menos de 2 horas"
+        : `Tienes ${urgentUnbet.length} partidos sin apostar que empiezan en menos de 2 horas`,
+      { duration: 9000 },
+    );
+  }, [token, urgentUnbet.length, urgentKey]);
 
   const myBetCardsDay = useMemo(() => {
     if (!selectedDay) return myBetCards;
@@ -274,6 +307,14 @@ export function Dashboard() {
 
       {loadError ? (
         <div className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{loadError}</div>
+      ) : null}
+
+      {token && urgentUnbet.length > 0 && !urgentBannerDismissed ? (
+        <UrgentBetAlert
+          matches={urgentUnbet}
+          nowMs={effectiveNowMs}
+          onDismiss={() => setUrgentBannerDismissed(true)}
+        />
       ) : null}
 
       <div className="space-y-1 rounded-lg border border-sky-500/25 bg-sky-500/5 px-3 py-2 text-sm text-sky-100/90">
@@ -435,7 +476,7 @@ export function Dashboard() {
             />
           ) : null}
 
-          <section className="space-y-3">
+          <section id="sin-apuesta" className="space-y-3 scroll-mt-24">
             <h2 className="text-lg font-semibold text-white">
               Sin apuesta <span className="text-primary">★</span>
             </h2>
