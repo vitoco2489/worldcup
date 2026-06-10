@@ -39,6 +39,7 @@ from app.schemas.admin import (
     SimulateBetRequest,
     SimulateMatchRequest,
     SimulateTimeRequest,
+    WhatsAppReminderResponse,
 )
 from app.schemas.bet import BetPublic
 from app.schemas.pool import PoolPublic
@@ -54,11 +55,20 @@ from app.services import (
     schedule_import_service,
     simulation_service,
     bracket_resolver_service,
+    whatsapp_reminder_service,
 )
 from app.utils.time import get_current_time
 from app.utils.admin import is_admin_email
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get("/whatsapp-reminder", response_model=WhatsAppReminderResponse)
+def whatsapp_reminder(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    return whatsapp_reminder_service.build_whatsapp_reminder(db)
 
 
 @router.get("/users", response_model=list[AdminUserRow])

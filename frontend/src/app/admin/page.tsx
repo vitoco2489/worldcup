@@ -15,6 +15,7 @@ import type {
   ScheduleLoadResponse,
   ServerTimeResponse,
   UserMe,
+  WhatsAppReminder,
 } from "@/lib/api";
 import { apiFetch, apiPostMultipart, fetchMe, getToken } from "@/lib/api";
 
@@ -52,8 +53,32 @@ export default function AdminPage() {
   const [newInviteEmail, setNewInviteEmail] = useState("");
   const [newInviteNote, setNewInviteNote] = useState("");
   const [loadingAction, setLoadingAction] = useState<ActionKey | null>(null);
+  const [whatsappReminder, setWhatsappReminder] = useState<WhatsAppReminder | null>(null);
+  const [loadingWhatsapp, setLoadingWhatsapp] = useState(false);
 
   const isLoading = (k: ActionKey) => loadingAction === k;
+
+  const loadWhatsappReminder = useCallback(async () => {
+    setLoadingWhatsapp(true);
+    try {
+      const r = await apiFetch<WhatsAppReminder>("/admin/whatsapp-reminder");
+      setWhatsappReminder(r);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo generar el mensaje");
+    } finally {
+      setLoadingWhatsapp(false);
+    }
+  }, []);
+
+  async function copyWhatsappMessage() {
+    if (!whatsappReminder?.message) return;
+    try {
+      await navigator.clipboard.writeText(whatsappReminder.message);
+      toast.success("Mensaje copiado — pégalo en WhatsApp");
+    } catch {
+      toast.error("No se pudo copiar. Selecciona el texto manualmente.");
+    }
+  }
 
   const load = useCallback(async () => {
     const t = getToken();
@@ -76,7 +101,8 @@ export default function AdminPage() {
     setAllowedEmails(allowed);
     setAdminUsers(users);
     setPoolInput(String(p.pool_total_usd ?? 0));
-  }, [router]);
+    await loadWhatsappReminder();
+  }, [loadWhatsappReminder, router]);
 
   useEffect(() => {
     void load().catch((e) => {
@@ -366,6 +392,61 @@ export default function AdminPage() {
       </header>
 
       <div className="space-y-6">
+        <section className="rounded-xl border border-amber-500/40 bg-card p-4 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-semibold text-amber-200">Mensaje WhatsApp — apuestas pendientes</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Genera un texto para copiar y enviar por WhatsApp a quienes no han apostado en partidos que
+                empiezan en menos de 2 horas.
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                disabled={loadingWhatsapp}
+                onClick={() => void loadWhatsappReminder()}
+                className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+              >
+                {loadingWhatsapp ? "Actualizando…" : "Actualizar"}
+              </button>
+              <button
+                type="button"
+                disabled={!whatsappReminder?.message}
+                onClick={() => void copyWhatsappMessage()}
+                className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+              >
+                Copiar mensaje
+              </button>
+            </div>
+          </div>
+
+          {whatsappReminder ? (
+            <>
+              {whatsappReminder.urgent_matches.length > 0 ? (
+                <ul className="text-xs text-slate-400">
+                  <li>
+                    {whatsappReminder.urgent_matches.length} partido
+                    {whatsappReminder.urgent_matches.length === 1 ? "" : "s"} próximo
+                    {whatsappReminder.urgent_matches.length === 1 ? "" : "s"}
+                    {" · "}
+                    {whatsappReminder.users_missing.length} sin apostar
+                  </li>
+                </ul>
+              ) : null}
+              <textarea
+                readOnly
+                value={whatsappReminder.message}
+                rows={Math.min(16, Math.max(6, whatsappReminder.message.split("\n").length + 1))}
+                className="w-full resize-y rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 font-mono text-xs leading-relaxed text-slate-200"
+                onFocus={(e) => e.target.select()}
+              />
+            </>
+          ) : (
+            <p className="text-sm text-slate-500">{loadingWhatsapp ? "Generando mensaje…" : "Sin datos."}</p>
+          )}
+        </section>
+
         <section className="rounded-xl border border-sky-500/35 bg-card p-4 space-y-3">
           <p className="font-semibold text-sky-200">Invitados (control de acceso)</p>
           <p className="text-xs text-slate-400">

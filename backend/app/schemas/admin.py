@@ -177,3 +177,26 @@ class AllowedEmailRow(BaseModel):
 class AllowedEmailCreate(BaseModel):
     email: str = Field(min_length=3, max_length=320)
     note: str | None = Field(default=None, max_length=128)
+
+
+class UrgentMatchSummary(BaseModel):
+    match_id: UUID
+    team_home: str
+    team_away: str
+    start_time: datetime
+    minutes_until_start: int
+
+
+class UserMissingUrgentBets(BaseModel):
+    user_id: UUID
+    name: str
+    email: str
+    missing_match_labels: list[str]
+
+
+class WhatsAppReminderResponse(BaseModel):
+    hours_window: int
+    app_url: str
+    urgent_matches: list[UrgentMatchSummary]
+    users_missing: list[UserMissingUrgentBets]
+    message: str

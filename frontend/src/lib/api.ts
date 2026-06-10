@@ -191,6 +191,29 @@ export type AdminUserRow = {
   entry_paid: boolean;
 };
 
+export type UrgentMatchSummary = {
+  match_id: string;
+  team_home: string;
+  team_away: string;
+  start_time: string;
+  minutes_until_start: number;
+};
+
+export type UserMissingUrgentBets = {
+  user_id: string;
+  name: string;
+  email: string;
+  missing_match_labels: string[];
+};
+
+export type WhatsAppReminder = {
+  hours_window: number;
+  app_url: string;
+  urgent_matches: UrgentMatchSummary[];
+  users_missing: UserMissingUrgentBets[];
+  message: string;
+};
+
 export type ResetSimulationResponse = {
   bets_deleted_new: number;
   bets_restored: number;
