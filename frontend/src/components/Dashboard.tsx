@@ -1,15 +1,20 @@
 "use client";
 
 import { GoogleLogin } from "@react-oauth/google";
-import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Bet, CommunityMatchRow, LeaderboardRow, Match, Pool, UserMe } from "@/lib/api";
 import { apiFetch, fetchMe, getToken, loginWithGoogle, setToken } from "@/lib/api";
 import { useEffectiveNow } from "@/hooks/useEffectiveNow";
+import { DASHBOARD_TABS, type DashboardTab, parseDashboardTab } from "@/lib/dashboardTabs";
 import { defaultUpcomingDayKey, isWithinBetUrgentWindow, localDateKey } from "@/lib/time";
-import { buildLeaderboardView, rankMarker, rowHighlightClass } from "@/lib/leaderboard";
+import { BracketPanel } from "./panels/BracketPanel";
+import { GroupsPanel } from "./panels/GroupsPanel";
+import { RankingPanel } from "./panels/RankingPanel";
+import { ResultsPanel } from "./panels/ResultsPanel";
+import { WallPanel } from "./panels/WallPanel";
 import { CommunityBets } from "./CommunityBets";
 import { MatchCard } from "./MatchCard";
 import { MatchDayPicker } from "./MatchDayPicker";
@@ -18,6 +23,10 @@ import { PlayerHistoryModal } from "./PlayerHistoryModal";
 import { UrgentBetAlert } from "./UrgentBetAlert";
 
 export function Dashboard() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeTab = parseDashboardTab(searchParams.get("tab"));
   const { effectiveNowMs, isSimulated, resync } = useEffectiveNow();
   const [token, setTok] = useState<string | null>(null);
   const [me, setMe] = useState<UserMe | null>(null);
@@ -192,11 +201,16 @@ export function Dashboard() {
     return recent.filter((m) => localDateKey(m.start_time) === selectedDay).length;
   }, [recent, selectedDay]);
 
-  const leaderboardView = useMemo(() => buildLeaderboardView(leaderboard), [leaderboard]);
-  const showHitColumns = leaderboardView.rows.length > 0;
-  const leaderId = leaderboardView.hasLeader
-    ? (leaderboardView.rows.find((r) => r.displayRank === 1)?.user_id ?? "none")
-    : "no-leader";
+  const setActiveTab = useCallback(
+    (tab: DashboardTab) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === "apuestas") params.delete("tab");
+      else params.set("tab", tab);
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   if (!token) {
     return (
@@ -252,21 +266,16 @@ export function Dashboard() {
                     <p className="truncate text-xs text-slate-400">{me.email}</p>
                   </div>
                   <div className="flex flex-col p-1 text-sm">
-                    <Link onClick={() => setMenuOpen(false)} href="/" className="rounded px-2 py-1.5 hover:bg-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setActiveTab("apuestas");
+                      }}
+                      className="rounded px-2 py-1.5 text-left hover:bg-slate-800"
+                    >
                       Inicio
-                    </Link>
-                    <Link onClick={() => setMenuOpen(false)} href="/matches/results" className="rounded px-2 py-1.5 hover:bg-slate-800">
-                      Resultados
-                    </Link>
-                    <Link onClick={() => setMenuOpen(false)} href="/groups" className="rounded px-2 py-1.5 hover:bg-slate-800">
-                      Grupos
-                    </Link>
-                    <Link onClick={() => setMenuOpen(false)} href="/bracket" className="rounded px-2 py-1.5 hover:bg-slate-800">
-                      Cuadro
-                    </Link>
-                    <Link onClick={() => setMenuOpen(false)} href="/wall" className="rounded px-2 py-1.5 hover:bg-slate-800">
-                      Muro
-                    </Link>
+                    </button>
                     <Link onClick={() => setMenuOpen(false)} href="/profile" className="rounded px-2 py-1.5 hover:bg-slate-800">
                       Perfil
                     </Link>
@@ -331,233 +340,154 @@ export function Dashboard() {
         </p>
       </div>
 
-      <section className="flex flex-col gap-4">
-        <div className="rounded-xl border border-slate-700 bg-card p-3">
-          <h2 className="text-sm font-semibold text-slate-400">Premio</h2>
+      <nav
+        className="-mx-1 flex gap-1 overflow-x-auto rounded-xl border border-slate-700 bg-card p-1"
+        aria-label="Secciones"
+      >
+        {DASHBOARD_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeTab === tab.id
+                ? "bg-primary/20 text-primary"
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      {activeTab === "apuestas" ? (
+        <>
           {pool ? (
-            <>
-              <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <p className="text-2xl font-extrabold text-white">{pool.prize_display_usd}</p>
-                <p className="text-sm font-medium text-primary">{pool.label}</p>
-              </div>
-              {pool.pool_total_usd > 0 ? (
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Pozo total: {pool.pool_total_usd.toLocaleString("es")} USD
-                </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-700/80 bg-card px-3 py-2 text-xs text-slate-400">
+              <span className="font-semibold text-white">{pool.prize_display_usd}</span>
+              <span className="text-primary">{pool.label}</span>
+              <span>·</span>
+              <span>{pool.total_users} jugadores</span>
+              <span>·</span>
+              <span>{pool.total_bets_placed} apuestas</span>
+            </div>
+          ) : null}
+
+          {selectedDay ? <DailyMessage dateKey={selectedDay} /> : null}
+
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
+            <div className="min-w-0 flex-1 space-y-8">
+              {recent.length > 0 && selectedDay ? (
+                <MatchDayPicker
+                  dates={matchDays}
+                  selected={selectedDay}
+                  onChange={setSelectedDay}
+                  matchCount={dayMatchCount}
+                />
               ) : null}
-              <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                <div className="flex items-baseline gap-1.5">
-                  <dt className="text-slate-500">Jugadores</dt>
-                  <dd className="font-semibold text-slate-200">{pool.total_users}</dd>
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <dt className="text-slate-500">Apuestas</dt>
-                  <dd className="font-semibold text-slate-200">{pool.total_bets_placed}</dd>
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <dt className="text-slate-500">Puntos</dt>
-                  <dd className="font-semibold text-slate-200">{pool.total_points_awarded}</dd>
-                </div>
-              </dl>
-            </>
-          ) : (
-            <p className="mt-1 text-sm text-slate-500">Cargando…</p>
-          )}
-        </div>
 
-        <div className="rounded-xl border border-slate-700 bg-card p-3">
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 className="text-base font-semibold">Ranking</h2>
-            {leaderboardView.rows.length > 0 ? (
-              <span className="text-[11px] text-slate-500">{leaderboardView.rows.length} jugadores</span>
-            ) : null}
-          </div>
-          {!leaderboardView.hasLeader && leaderboardView.rows.length > 0 ? (
-            <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
-              Sin puntos aún — podio cuando se resuelvan partidos.
-            </p>
-          ) : null}
-          <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-slate-800 sm:max-h-64">
-            <table className="w-full min-w-[36rem] text-left text-xs">
-              <thead className="sticky top-0 z-10 bg-slate-900/95 text-[11px] text-slate-400 backdrop-blur-sm">
-                <tr>
-                  <th className="whitespace-nowrap px-2 py-1.5">#</th>
-                  <th className="whitespace-nowrap px-2 py-1.5">Nombre</th>
-                  <th className="whitespace-nowrap px-2 py-1.5 text-right">Puntos</th>
-                  <th className="whitespace-nowrap px-2 py-1.5 text-right">Apuestas</th>
-                  {showHitColumns ? (
-                    <>
-                      <th className="whitespace-nowrap px-2 py-1.5 text-right">Aciertos</th>
-                      <th className="whitespace-nowrap px-2 py-1.5 text-right">Errores</th>
-                    </>
-                  ) : null}
-                  <th className="whitespace-nowrap px-2 py-1.5 text-center">Cuota</th>
-                </tr>
-              </thead>
-              <AnimatePresence mode="wait">
-              <motion.tbody
-                key={leaderId}
-                initial={{ opacity: 0.7 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.25 }}
-              >
-                {leaderboardView.rows.map((row) => (
-                  <motion.tr
-                    layout
-                    key={row.user_id}
-                    className={`border-t border-slate-800/80 transition-colors ${rowHighlightClass(row.displayRank, leaderboardView.hasLeader)}`}
-                    animate={
-                      leaderboardView.hasLeader && row.displayRank === 1
-                        ? { scale: [1, 1.005, 1] }
-                        : { scale: 1 }
-                    }
-                    transition={{ duration: 0.35 }}
-                  >
-                    <td className={`whitespace-nowrap px-1.5 py-1 ${leaderboardView.hasLeader && row.displayRank <= 3 ? "text-white" : "text-slate-500"}`}>
-                      {rankMarker(row.displayRank, leaderboardView.hasLeader)}
-                    </td>
-                    <td className="max-w-[8rem] truncate px-1.5 py-1 font-medium sm:max-w-none">
-                      <button
-                        type="button"
-                        onClick={() => setHistoryPlayer({ id: row.user_id, name: row.name })}
-                        className="truncate text-left text-primary hover:underline"
-                        title={`Ver historial de ${row.name}`}
-                      >
-                        {row.name}
-                      </button>
-                    </td>
-                    <td
-                      className={`whitespace-nowrap px-1.5 py-1 text-right tabular-nums ${
-                        leaderboardView.hasLeader && row.displayRank === 1 ? "font-bold text-amber-200" : ""
-                      }`}
+              <section id="sin-apuesta" className="space-y-3 scroll-mt-24">
+                <h2 className="text-lg font-semibold text-white">
+                  Sin apuesta <span className="text-primary">★</span>
+                </h2>
+                {!token ? (
+                  <p className="text-sm text-slate-400">Inicia sesión para ver partidos sin apostar.</p>
+                ) : recent.length === 0 ? (
+                  <p className="text-sm text-slate-400">
+                    No hay partidos próximos.{" "}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("resultados")}
+                      className="text-primary underline hover:text-primary/90"
                     >
-                      {row.total_points}
-                    </td>
-                    <td className="whitespace-nowrap px-1.5 py-1 text-right tabular-nums text-slate-300">
-                      {row.total_bets}
-                    </td>
-                    {showHitColumns ? (
-                      <>
-                        <td className="whitespace-nowrap px-1.5 py-1 text-right tabular-nums text-emerald-400/90">
-                          {row.correct_bets}
-                        </td>
-                        <td className="whitespace-nowrap px-1.5 py-1 text-right tabular-nums text-red-400/90">
-                          {row.incorrect_bets}
-                        </td>
-                      </>
-                    ) : null}
-                    <td className="whitespace-nowrap px-1.5 py-1 text-center">
-                      {row.entry_paid ? (
-                        <span className="text-emerald-400" title="Cuota pagada" aria-label="Cuota pagada">
-                          ✓
-                        </span>
-                      ) : (
-                        <span className="text-red-400" title="Cuota pendiente" aria-label="Cuota pendiente">
-                          ✗
-                        </span>
-                      )}
-                    </td>
-                  </motion.tr>
-                ))}
-              </motion.tbody>
-              </AnimatePresence>
-            </table>
-          </div>
-        </div>
+                      Ver resultados
+                    </button>{" "}
+                    para ver los marcadores.
+                  </p>
+                ) : dayMatchCount === 0 ? (
+                  <p className="text-sm text-slate-400">No hay partidos este día — prueba otra fecha.</p>
+                ) : upcomingNoBetDay.length === 0 ? (
+                  <p className="text-sm text-slate-400">Ya apostaste a todos los partidos de este día.</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {upcomingNoBetDay.map((m) => (
+                      <MatchCard key={m.id} match={m} effectiveNowMs={effectiveNowMs} onBetSaved={refreshAll} />
+                    ))}
+                  </div>
+                )}
+              </section>
 
-        {selectedDay ? <DailyMessage dateKey={selectedDay} /> : null}
-      </section>
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold">Mis apuestas</h2>
+                {!token ? (
+                  <p className="text-sm text-slate-400">Inicia sesión para ver tus apuestas.</p>
+                ) : myBetCards.length === 0 ? (
+                  <p className="text-sm text-slate-400">
+                    No tienes apuestas abiertas — agrega una en{" "}
+                    <span className="text-slate-300">Sin apuesta</span>. Las finalizadas están en{" "}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("resultados")}
+                      className="text-primary underline hover:text-primary/90"
+                    >
+                      Resultados
+                    </button>
+                    .
+                  </p>
+                ) : dayMatchCount === 0 ? (
+                  <p className="text-sm text-slate-400">No tienes apuestas este día.</p>
+                ) : myBetCardsDay.length === 0 ? (
+                  <p className="text-sm text-slate-400">Aún no tienes apuestas este día.</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {myBetCardsDay.map(({ bet, match }) => (
+                      <MatchCard
+                        key={bet.id}
+                        match={match}
+                        effectiveNowMs={effectiveNowMs}
+                        existingBet={bet}
+                        onBetSaved={refreshAll}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
 
-      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
-        <div className="min-w-0 flex-1 space-y-8">
-          {recent.length > 0 && selectedDay ? (
-            <MatchDayPicker
-              dates={matchDays}
-              selected={selectedDay}
-              onChange={setSelectedDay}
-              matchCount={dayMatchCount}
-            />
-          ) : null}
-
-          <section id="sin-apuesta" className="space-y-3 scroll-mt-24">
-            <h2 className="text-lg font-semibold text-white">
-              Sin apuesta <span className="text-primary">★</span>
-            </h2>
-            {!token ? (
-              <p className="text-sm text-slate-400">Inicia sesión para ver partidos sin apostar.</p>
-            ) : recent.length === 0 ? (
-              <p className="text-sm text-slate-400">
-                No hay partidos próximos.{" "}
-                <Link href="/matches/results" className="text-primary underline hover:text-primary/90">
-                  Ver resultados
-                </Link>{" "}
-                para ver los marcadores.
-              </p>
-            ) : dayMatchCount === 0 ? (
-              <p className="text-sm text-slate-400">No hay partidos este día — prueba otra fecha.</p>
-            ) : upcomingNoBetDay.length === 0 ? (
-              <p className="text-sm text-slate-400">Ya apostaste a todos los partidos de este día.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {upcomingNoBetDay.map((m) => (
-                  <MatchCard key={m.id} match={m} effectiveNowMs={effectiveNowMs} onBetSaved={refreshAll} />
-                ))}
+            <aside className="w-full shrink-0 space-y-3 lg:sticky lg:top-6 lg:w-80 lg:self-start">
+              <div className="rounded-xl border border-slate-700 bg-card p-4">
+                <p className="text-sm font-semibold text-white">🏆 Sistema de puntos</p>
+                <ul className="mt-2 space-y-1 text-xs text-slate-300">
+                  <li>+3 → resultado correcto (1×2)</li>
+                  <li>+2 → marcador exacto</li>
+                  <li>Máximo: 5 puntos por partido</li>
+                  <li className="pt-1 text-sky-200/80">Cierre de apuestas: 5 min antes del pitido</li>
+                  <li className="text-sky-200/80">Resultado: marcador a los 90 min (sin alargue ni penales)</li>
+                </ul>
               </div>
-            )}
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Mis apuestas</h2>
-            {!token ? (
-              <p className="text-sm text-slate-400">Inicia sesión para ver tus apuestas.</p>
-            ) : myBetCards.length === 0 ? (
-              <p className="text-sm text-slate-400">
-                No tienes apuestas abiertas — agrega una en{" "}
-                <span className="text-slate-300">Sin apuesta</span>. Las finalizadas están en{" "}
-                <Link href="/matches/results" className="text-primary underline hover:text-primary/90">
-                  Resultados
-                </Link>
-                .
+              <h2 className="text-lg font-semibold text-white">Apuestas del grupo</h2>
+              <p className="text-xs text-slate-500">
+                Porcentajes antes del pitido; después se muestran los nombres por lado.
+                {selectedDay && matchDays.length > 1 ? " Filtrado al día seleccionado." : null}
               </p>
-            ) : dayMatchCount === 0 ? (
-              <p className="text-sm text-slate-400">No tienes apuestas este día.</p>
-            ) : myBetCardsDay.length === 0 ? (
-              <p className="text-sm text-slate-400">Aún no tienes apuestas este día.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {myBetCardsDay.map(({ bet, match }) => (
-                  <MatchCard
-                    key={bet.id}
-                    match={match}
-                    effectiveNowMs={effectiveNowMs}
-                    existingBet={bet}
-                    onBetSaved={refreshAll}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-
-        <aside className="w-full shrink-0 space-y-3 lg:sticky lg:top-6 lg:w-80 lg:self-start">
-          <div className="rounded-xl border border-slate-700 bg-card p-4">
-            <p className="text-sm font-semibold text-white">🏆 Sistema de puntos</p>
-            <ul className="mt-2 space-y-1 text-xs text-slate-300">
-              <li>+3 → resultado correcto (1×2)</li>
-              <li>+2 → marcador exacto</li>
-              <li>Máximo: 5 puntos por partido</li>
-              <li className="pt-1 text-sky-200/80">Cierre de apuestas: 5 min antes del pitido</li>
-              <li className="text-sky-200/80">Resultado: marcador a los 90 min (sin alargue ni penales)</li>
-            </ul>
+              <CommunityBets rows={communityDay} />
+            </aside>
           </div>
-          <h2 className="text-lg font-semibold text-white">Apuestas del grupo</h2>
-          <p className="text-xs text-slate-500">
-            Porcentajes antes del pitido; después se muestran los nombres por lado.
-            {selectedDay && matchDays.length > 1 ? " Filtrado al día seleccionado." : null}
-          </p>
-          <CommunityBets rows={communityDay} />
-        </aside>
-      </div>
+        </>
+      ) : null}
+
+      {activeTab === "ranking" ? (
+        <RankingPanel
+          pool={pool}
+          leaderboard={leaderboard}
+          onPlayerClick={setHistoryPlayer}
+        />
+      ) : null}
+
+      {activeTab === "resultados" ? <ResultsPanel /> : null}
+      {activeTab === "grupos" ? <GroupsPanel /> : null}
+      {activeTab === "cuadro" ? <BracketPanel /> : null}
+      {activeTab === "muro" ? <WallPanel /> : null}
 
       <div className="pb-8" />
 
