@@ -258,6 +258,9 @@ export function Dashboard() {
                     <Link onClick={() => setMenuOpen(false)} href="/matches/results" className="rounded px-2 py-1.5 hover:bg-slate-800">
                       Resultados
                     </Link>
+                    <Link onClick={() => setMenuOpen(false)} href="/groups" className="rounded px-2 py-1.5 hover:bg-slate-800">
+                      Grupos
+                    </Link>
                     <Link onClick={() => setMenuOpen(false)} href="/bracket" className="rounded px-2 py-1.5 hover:bg-slate-800">
                       Cuadro
                     </Link>

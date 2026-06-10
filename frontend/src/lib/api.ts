@@ -161,6 +161,33 @@ export type BracketView = {
   rounds: BracketRound[];
 };
 
+export type QualificationStatus = "direct" | "best_third";
+
+export type TeamStandingRow = {
+  team: string;
+  team_code: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  gf: number;
+  ga: number;
+  gd: number;
+  points: number;
+  qualification: QualificationStatus | null;
+};
+
+export type GroupStandingsTable = {
+  group_name: string;
+  group_letter: string;
+  rows: TeamStandingRow[];
+};
+
+export type GroupStandingsView = {
+  groups: GroupStandingsTable[];
+  best_third_slots: number;
+};
+
 export type WallEntry = {
   user_name: string;
   match_label: string;
