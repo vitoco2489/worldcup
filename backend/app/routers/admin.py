@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -65,10 +65,11 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.get("/whatsapp-reminder", response_model=WhatsAppReminderResponse)
 def whatsapp_reminder(
+    hours: int = Query(default=2, description="Ventana: 2, 6, 12, 24, 48, 72 u 168 horas"),
     db: Session = Depends(get_db),
     _admin: User = Depends(get_admin_user),
 ):
-    return whatsapp_reminder_service.build_whatsapp_reminder(db)
+    return whatsapp_reminder_service.build_whatsapp_reminder(db, hours_window=hours)
 
 
 @router.get("/users", response_model=list[AdminUserRow])

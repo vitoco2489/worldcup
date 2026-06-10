@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,7 +16,28 @@ from app.schemas.admin import UrgentMatchSummary, UserMissingUrgentBets, WhatsAp
 from app.utils.time import get_current_time, lock_time_for_match_start
 
 CHILE_TZ = ZoneInfo("America/Santiago")
-URGENT_WINDOW_HOURS = 2
+
+ALLOWED_WINDOW_HOURS = (2, 6, 12, 24, 48, 72, 168)
+DEFAULT_WINDOW_HOURS = 2
+
+
+def window_label_es(hours: int) -> str:
+    if hours < 24:
+        return f"{hours} hora{'s' if hours != 1 else ''}"
+    if hours % 24 == 0:
+        days = hours // 24
+        return f"{days} día{'s' if days != 1 else ''}"
+    return f"{hours} horas"
+
+
+def _normalize_window_hours(hours: int) -> int:
+    if hours not in ALLOWED_WINDOW_HOURS:
+        allowed = ", ".join(str(h) for h in ALLOWED_WINDOW_HOURS)
+        raise HTTPException(
+            status_code=400,
+            detail=f"hours debe ser uno de: {allowed}",
+        )
+    return hours
 
 
 def _format_local(dt: datetime) -> str:
@@ -31,9 +53,11 @@ def _minutes_until(start: datetime, now: datetime) -> int:
     return max(0, int((start - now).total_seconds() // 60))
 
 
-def build_whatsapp_reminder(db: Session) -> WhatsAppReminderResponse:
+def build_whatsapp_reminder(db: Session, *, hours_window: int = DEFAULT_WINDOW_HOURS) -> WhatsAppReminderResponse:
+    hours_window = _normalize_window_hours(hours_window)
+    window_label = window_label_es(hours_window)
     now = get_current_time(db=db)
-    window_end = now + timedelta(hours=URGENT_WINDOW_HOURS)
+    window_end = now + timedelta(hours=hours_window)
 
     urgent_matches = list(
         db.scalars(
@@ -48,7 +72,6 @@ def build_whatsapp_reminder(db: Session) -> WhatsAppReminderResponse:
             .order_by(Match.start_time.asc())
         ).all()
     )
-    # Still bettable: more than 5 min before kickoff
     urgent_matches = [m for m in urgent_matches if now < lock_time_for_match_start(m.start_time)]
 
     users = list(db.scalars(select(User).order_by(User.name.asc())).all())
@@ -99,10 +122,12 @@ def build_whatsapp_reminder(db: Session) -> WhatsAppReminderResponse:
         users_missing=users_missing,
         app_url=app_url,
         now=now,
+        window_label=window_label,
     )
 
     return WhatsAppReminderResponse(
-        hours_window=URGENT_WINDOW_HOURS,
+        hours_window=hours_window,
+        window_label=window_label,
         app_url=app_url,
         urgent_matches=match_summaries,
         users_missing=users_missing,
@@ -116,11 +141,12 @@ def _format_message(
     users_missing: list[UserMissingUrgentBets],
     app_url: str,
     now: datetime,
+    window_label: str,
 ) -> str:
     if not urgent_matches:
         return (
             "✅ *VitoBet*\n\n"
-            f"No hay partidos sin apostar que empiecen en las próximas {URGENT_WINDOW_HOURS} horas "
+            f"No hay partidos sin apostar que empiecen en las próximas {window_label} "
             "(o ya cerraron las apuestas).\n\n"
             f"Entra al sitio: {app_url}"
         )
@@ -128,7 +154,7 @@ def _format_message(
     lines = [
         "⚠️ *VitoBet — Recordatorio de apuestas*",
         "",
-        f"Hola! Hay partidos que empiezan en *menos de {URGENT_WINDOW_HOURS} horas* "
+        f"Hola! Hay partidos que empiezan en las *próximas {window_label}* "
         "y todavía hay gente sin apostar:",
         "",
         "*Partidos:*",
@@ -136,7 +162,13 @@ def _format_message(
     for m in urgent_matches:
         mins = _minutes_until(m.start_time, now)
         h, rem = divmod(mins, 60)
-        countdown = f"{h}h {rem}m" if h else f"{rem} min"
+        if h >= 24:
+            d, rh = divmod(h, 24)
+            countdown = f"{d}d {rh}h" if rh else f"{d}d"
+        elif h:
+            countdown = f"{h}h {rem}m"
+        else:
+            countdown = f"{rem} min"
         lines.append(f"• {_match_label(m)} — {_format_local(m.start_time)} (en {countdown})")
 
     if users_missing:

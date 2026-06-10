@@ -208,6 +208,7 @@ export type UserMissingUrgentBets = {
 
 export type WhatsAppReminder = {
   hours_window: number;
+  window_label: string;
   app_url: string;
   urgent_matches: UrgentMatchSummary[];
   users_missing: UserMissingUrgentBets[];

@@ -196,6 +196,7 @@ class UserMissingUrgentBets(BaseModel):
 
 class WhatsAppReminderResponse(BaseModel):
     hours_window: int
+    window_label: str
     app_url: str
     urgent_matches: list[UrgentMatchSummary]
     users_missing: list[UserMissingUrgentBets]

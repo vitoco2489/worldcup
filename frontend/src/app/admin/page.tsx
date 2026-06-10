@@ -19,6 +19,16 @@ import type {
 } from "@/lib/api";
 import { apiFetch, apiPostMultipart, fetchMe, getToken } from "@/lib/api";
 
+const WHATSAPP_WINDOW_OPTIONS = [
+  { hours: 2, label: "2 horas" },
+  { hours: 6, label: "6 horas" },
+  { hours: 12, label: "12 horas" },
+  { hours: 24, label: "1 día" },
+  { hours: 48, label: "2 días" },
+  { hours: 72, label: "3 días" },
+  { hours: 168, label: "7 días" },
+] as const;
+
 type ActionKey =
   | "save_pool"
   | "load_json"
@@ -55,20 +65,21 @@ export default function AdminPage() {
   const [loadingAction, setLoadingAction] = useState<ActionKey | null>(null);
   const [whatsappReminder, setWhatsappReminder] = useState<WhatsAppReminder | null>(null);
   const [loadingWhatsapp, setLoadingWhatsapp] = useState(false);
+  const [whatsappWindowHours, setWhatsappWindowHours] = useState(2);
 
   const isLoading = (k: ActionKey) => loadingAction === k;
 
-  const loadWhatsappReminder = useCallback(async () => {
+  const loadWhatsappReminder = useCallback(async (hours: number = whatsappWindowHours) => {
     setLoadingWhatsapp(true);
     try {
-      const r = await apiFetch<WhatsAppReminder>("/admin/whatsapp-reminder");
+      const r = await apiFetch<WhatsAppReminder>(`/admin/whatsapp-reminder?hours=${hours}`);
       setWhatsappReminder(r);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo generar el mensaje");
     } finally {
       setLoadingWhatsapp(false);
     }
-  }, []);
+  }, [whatsappWindowHours]);
 
   async function copyWhatsappMessage() {
     if (!whatsappReminder?.message) return;
@@ -397,15 +408,33 @@ export default function AdminPage() {
             <div>
               <p className="font-semibold text-amber-200">Mensaje WhatsApp — apuestas pendientes</p>
               <p className="mt-1 text-xs text-slate-400">
-                Genera un texto para copiar y enviar por WhatsApp a quienes no han apostado en partidos que
-                empiezan en menos de 2 horas.
+                Genera un texto para copiar y enviar por WhatsApp a quienes no han apostado en partidos
+                próximos (elige la ventana de tiempo).
               </p>
             </div>
-            <div className="flex shrink-0 gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 text-xs text-slate-400">
+                Ventana
+                <select
+                  value={whatsappWindowHours}
+                  onChange={(e) => {
+                    const h = Number(e.target.value);
+                    setWhatsappWindowHours(h);
+                    void loadWhatsappReminder(h);
+                  }}
+                  className="rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-200"
+                >
+                  {WHATSAPP_WINDOW_OPTIONS.map((o) => (
+                    <option key={o.hours} value={o.hours}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 type="button"
                 disabled={loadingWhatsapp}
-                onClick={() => void loadWhatsappReminder()}
+                onClick={() => void loadWhatsappReminder(whatsappWindowHours)}
                 className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-60"
               >
                 {loadingWhatsapp ? "Actualizando…" : "Actualizar"}
@@ -423,17 +452,20 @@ export default function AdminPage() {
 
           {whatsappReminder ? (
             <>
-              {whatsappReminder.urgent_matches.length > 0 ? (
-                <ul className="text-xs text-slate-400">
-                  <li>
-                    {whatsappReminder.urgent_matches.length} partido
-                    {whatsappReminder.urgent_matches.length === 1 ? "" : "s"} próximo
-                    {whatsappReminder.urgent_matches.length === 1 ? "" : "s"}
-                    {" · "}
-                    {whatsappReminder.users_missing.length} sin apostar
-                  </li>
-                </ul>
-              ) : null}
+              <ul className="text-xs text-slate-400">
+                <li>
+                  Ventana: {whatsappReminder.window_label}
+                  {whatsappReminder.urgent_matches.length > 0 ? (
+                    <>
+                      {" · "}
+                      {whatsappReminder.urgent_matches.length} partido
+                      {whatsappReminder.urgent_matches.length === 1 ? "" : "s"}
+                      {" · "}
+                      {whatsappReminder.users_missing.length} sin apostar
+                    </>
+                  ) : null}
+                </li>
+              </ul>
               <textarea
                 readOnly
                 value={whatsappReminder.message}
