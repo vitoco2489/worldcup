@@ -1,20 +1,11 @@
+import { ApiAuthError, clearAuthSession, getToken, setToken } from "@/lib/auth";
+
+export { getToken, setToken };
+
 /** Browser: same-origin /api (nginx → backend). Dev SSR: direct backend URL. */
 function getApiBase(): string {
   if (typeof window !== "undefined") return "/api";
   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-}
-
-const TOKEN_KEY = "wc_pool_token";
-
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token: string | null) {
-  if (typeof window === "undefined") return;
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
 }
 
 export type Match = {
@@ -299,6 +290,9 @@ async function handleJsonError(res: Response): Promise<never> {
   } catch {
     /* not JSON */
   }
+  if (res.status === 401 || res.status === 403) {
+    throw new ApiAuthError(res.status, msg);
+  }
   throw new Error(msg);
 }
 
@@ -310,7 +304,12 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     headers.set("Authorization", `Bearer ${token}`);
   }
   const res = await fetch(`${getApiBase()}${path}`, { ...init, headers });
-  if (!res.ok) await handleJsonError(res);
+  if (!res.ok) {
+    if ((res.status === 401 || res.status === 403) && token && !path.startsWith("/auth/login")) {
+      clearAuthSession();
+    }
+    await handleJsonError(res);
+  }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }

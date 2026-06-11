@@ -1,12 +1,13 @@
 "use client";
 
-import { GoogleLogin } from "@react-oauth/google";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Bet, CommunityMatchRow, LeaderboardRow, Match, Pool, UserMe } from "@/lib/api";
-import { apiFetch, fetchMe, getToken, loginWithGoogle, setToken } from "@/lib/api";
+import { AUTH_LOGOUT_EVENT, clearAuthSession } from "@/lib/auth";
+import { apiFetch, fetchMe, getToken, loginWithGoogle } from "@/lib/api";
+import { GoogleSignIn } from "./GoogleSignIn";
 import { useEffectiveNow } from "@/hooks/useEffectiveNow";
 import { DASHBOARD_TABS, type DashboardTab, parseDashboardTab } from "@/lib/dashboardTabs";
 import { defaultUpcomingDayKey, isWithinBetUrgentWindow, localDateKey } from "@/lib/time";
@@ -42,7 +43,16 @@ export function Dashboard() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [historyPlayer, setHistoryPlayer] = useState<{ id: string; name: string } | null>(null);
   const [urgentBannerDismissed, setUrgentBannerDismissed] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
   const urgentToastShown = useRef(false);
+
+  const logout = useCallback(() => {
+    clearAuthSession();
+    setTok(null);
+    setMe(null);
+    setMenuOpen(false);
+    setSessionReady(true);
+  }, []);
 
   const refreshPublic = useCallback(async () => {
     const [upcomingList, lb, p, comm] = await Promise.all([
@@ -91,6 +101,15 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const onLogout = () => {
+      setTok(null);
+      setMe(null);
+    };
+    window.addEventListener(AUTH_LOGOUT_EVENT, onLogout);
+    return () => window.removeEventListener(AUTH_LOGOUT_EVENT, onLogout);
+  }, []);
+
+  useEffect(() => {
     if (!token) urgentToastShown.current = false;
   }, [token]);
 
@@ -103,9 +122,26 @@ export function Dashboard() {
     const t = getToken();
     if (!t) {
       setMe(null);
+      setSessionReady(true);
       return;
     }
-    void fetchMe().then(setMe).catch(() => setMe(null));
+    setSessionReady(false);
+    void fetchMe()
+      .then((user) => {
+        setMe(user);
+        setLoadError(null);
+      })
+      .catch((e) => {
+        clearAuthSession();
+        setTok(null);
+        setMe(null);
+        setLoadError(
+          e instanceof Error
+            ? e.message
+            : "Sesión inválida. Inicia sesión con tu correo autorizado.",
+        );
+      })
+      .finally(() => setSessionReady(true));
   }, [token]);
 
   const isAdmin = me?.is_admin === true;
@@ -212,28 +248,39 @@ export function Dashboard() {
     [pathname, router, searchParams],
   );
 
-  if (!token) {
+  if (!sessionReady) {
+    return (
+      <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center px-4 py-8 text-sm text-slate-400">
+        Verificando sesión…
+      </div>
+    );
+  }
+
+  if (!token || !me) {
     return (
       <div className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-4 py-8 text-center">
         <h1 className="text-3xl font-bold tracking-tight">VitoBet — Mundial 2026</h1>
         <p className="mt-2 text-sm text-slate-400">Polla privada entre amigos. Solo invitados con Google pueden entrar.</p>
         <div className="mt-6">
-          <GoogleLogin
-            onSuccess={async (cred) => {
-              if (!cred.credential) return;
+          <GoogleSignIn
+            onSuccess={async (idToken) => {
               try {
-                await loginWithGoogle(cred.credential);
+                setLoadError(null);
+                await loginWithGoogle(idToken);
                 setTok(getToken());
               } catch (e) {
+                clearAuthSession();
+                setTok(null);
                 setLoadError(e instanceof Error ? e.message : "Error al iniciar sesión con Google");
               }
             }}
             onError={() => setLoadError("Error al iniciar sesión con Google")}
-            useOneTap={false}
           />
         </div>
         {loadError ? (
-          <div className="mt-4 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{loadError}</div>
+          <div className="mt-4 max-w-md rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+            {loadError}
+          </div>
         ) : null}
       </div>
     );
@@ -286,11 +333,18 @@ export function Dashboard() {
                     ) : null}
                     <button
                       type="button"
+                      className="rounded px-2 py-1.5 text-left hover:bg-slate-800"
+                      onClick={() => {
+                        logout();
+                      }}
+                    >
+                      Cambiar cuenta
+                    </button>
+                    <button
+                      type="button"
                       className="rounded px-2 py-1.5 text-left text-danger hover:bg-slate-800"
                       onClick={() => {
-                        setMenuOpen(false);
-                        setToken(null);
-                        setTok(null);
+                        logout();
                       }}
                     >
                       Cerrar sesión
@@ -299,21 +353,7 @@ export function Dashboard() {
                 </div>
               ) : null}
             </div>
-          ) : (
-            <GoogleLogin
-              onSuccess={async (cred) => {
-                if (!cred.credential) return;
-                try {
-                  await loginWithGoogle(cred.credential);
-                  setTok(getToken());
-                } catch (e) {
-                  setLoadError(e instanceof Error ? e.message : "Error al iniciar sesión con Google");
-                }
-              }}
-              onError={() => setLoadError("Error al iniciar sesión con Google")}
-              useOneTap={false}
-            />
-          )}
+          ) : null}
         </div>
       </header>
 
