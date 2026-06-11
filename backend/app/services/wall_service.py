@@ -7,6 +7,7 @@ from app.models.bet import Bet
 from app.models.match import Match
 from app.models.user import User
 from app.schemas.social import WallEntry, WallHighlights
+from app.services.bet_service import is_exact_score_hit, match_result_prediction
 
 
 def _match_label(m: Match) -> str:
@@ -40,8 +41,11 @@ def wall_highlights(db: Session, *, limit: int = 12) -> WallHighlights:
         )
         label = _match_label(m)
         pts = int(bet.points_awarded or 0)
+        outcome = match_result_prediction(m)
+        correct = outcome is not None and bet.prediction == outcome
+        exact_hit = is_exact_score_hit(bet, m)
 
-        if bet.exact_score_hit:
+        if exact_hit:
             fame.append(
                 WallEntry(
                     user_name=user.name,
@@ -54,7 +58,7 @@ def wall_highlights(db: Session, *, limit: int = 12) -> WallHighlights:
                     detail="Marcador exacto",
                 )
             )
-        elif pts >= 3 and bet.correct:
+        elif pts >= 3 and correct:
             fame.append(
                 WallEntry(
                     user_name=user.name,
@@ -70,7 +74,7 @@ def wall_highlights(db: Session, *, limit: int = 12) -> WallHighlights:
 
         if pred_score is not None:
             err = abs(bet.predicted_score_home - m.score_home) + abs(bet.predicted_score_away - m.score_away)
-            if not bet.exact_score_hit and err >= 4:
+            if not exact_hit and err >= 4:
                 shame.append(
                     WallEntry(
                         user_name=user.name,
@@ -83,7 +87,7 @@ def wall_highlights(db: Session, *, limit: int = 12) -> WallHighlights:
                         detail=f"Lejos {err} goles del real",
                     )
                 )
-            elif not bet.correct and pred_score in ("4-0", "0-4", "3-0", "0-3") and m.score_home == m.score_away:
+            elif not correct and pred_score in ("4-0", "0-4", "3-0", "0-3") and m.score_home == m.score_away:
                 shame.append(
                     WallEntry(
                         user_name=user.name,
@@ -96,7 +100,7 @@ def wall_highlights(db: Session, *, limit: int = 12) -> WallHighlights:
                         detail="Soñó goleada, hubo empate",
                     )
                 )
-        elif not bet.correct and pts == 0:
+        elif not correct and pts == 0:
             shame.append(
                 WallEntry(
                     user_name=user.name,
