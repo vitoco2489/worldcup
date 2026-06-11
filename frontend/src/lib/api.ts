@@ -49,6 +49,7 @@ export type Bet = {
   editable: boolean;
   correct: boolean | null;
   exact_score_hit: boolean | null;
+  match?: Match;
 };
 
 export type PredictionCounts = {

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, model_validator
 
+from app.schemas.match import MatchPublic
 from app.utils.betting_validation import implied_outcome_from_scores
 
 
@@ -61,3 +62,7 @@ class BetPublic(BaseModel):
     exact_score_hit: bool | None = None
 
     model_config = {"from_attributes": True}
+
+
+class BetWithMatchPublic(BetPublic):
+    match: MatchPublic

@@ -83,6 +83,13 @@ export function Dashboard() {
     ]);
     setUpcomingNoBet(ub);
     setMyBets(bets);
+    setMatchById((prev) => {
+      const next = { ...prev };
+      for (const b of bets) {
+        if (b.match) next[b.match.id] = b.match;
+      }
+      return next;
+    });
   }, []);
 
   const refreshAll = useCallback(async () => {
@@ -149,7 +156,7 @@ export function Dashboard() {
   const myBetCards = useMemo(() => {
     return myBets
       .map((b) => {
-        const m = matchById[b.match_id];
+        const m = b.match ?? matchById[b.match_id];
         if (!m) return null;
         return { bet: b, match: m };
       })
@@ -172,8 +179,12 @@ export function Dashboard() {
   const matchDays = useMemo(() => {
     const keys = new Set<string>();
     for (const m of recent) keys.add(localDateKey(m.start_time));
+    for (const b of myBets) {
+      const m = b.match ?? matchById[b.match_id];
+      if (m) keys.add(localDateKey(m.start_time));
+    }
     return Array.from(keys).sort();
-  }, [recent]);
+  }, [recent, myBets, matchById]);
 
   useEffect(() => {
     if (matchDays.length === 0) {
@@ -229,9 +240,16 @@ export function Dashboard() {
   }, [communityDashboard, selectedDay]);
 
   const dayMatchCount = useMemo(() => {
-    if (!selectedDay) return recent.length;
-    return recent.filter((m) => localDateKey(m.start_time) === selectedDay).length;
-  }, [recent, selectedDay]);
+    if (!selectedDay) return recent.length + myBetCards.filter(({ match }) => !recent.some((m) => m.id === match.id)).length;
+    const ids = new Set<string>();
+    for (const m of recent) {
+      if (localDateKey(m.start_time) === selectedDay) ids.add(m.id);
+    }
+    for (const { match } of myBetCards) {
+      if (localDateKey(match.start_time) === selectedDay) ids.add(match.id);
+    }
+    return ids.size;
+  }, [recent, myBetCards, selectedDay]);
 
   const setActiveTab = useCallback(
     (tab: DashboardTab) => {
@@ -459,16 +477,8 @@ export function Dashboard() {
                   <p className="text-sm text-slate-400">Inicia sesión para ver tus apuestas.</p>
                 ) : myBetCards.length === 0 ? (
                   <p className="text-sm text-slate-400">
-                    No tienes apuestas abiertas — agrega una en{" "}
-                    <span className="text-slate-300">Sin apuesta</span>. Las finalizadas están en{" "}
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("resultados")}
-                      className="text-primary underline hover:text-primary/90"
-                    >
-                      Resultados
-                    </button>
-                    .
+                    No tienes apuestas — agrega una en{" "}
+                    <span className="text-slate-300">Sin apuesta</span>.
                   </p>
                 ) : dayMatchCount === 0 ? (
                   <p className="text-sm text-slate-400">No tienes apuestas este día.</p>

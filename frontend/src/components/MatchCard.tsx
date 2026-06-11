@@ -15,6 +15,7 @@ import {
   type MatchLifecycleStatus,
   type MatchBettingPhase,
 } from "@/lib/time";
+import { betPickLabel, betResultBadge } from "@/lib/betLabels";
 import { FootballKick } from "./FootballKick";
 import { BetChoiceBurst } from "./BetChoiceBurst";
 import { MatchMetaBadges } from "./MatchMetaBadges";
@@ -214,6 +215,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
   const showScores = match.score_home != null && match.score_away != null;
   const showPredicted =
     existingBet?.predicted_score_home != null && existingBet?.predicted_score_away != null;
+  const resultBadge = existingBet ? betResultBadge(existingBet) : null;
 
   return (
     <motion.div
@@ -253,6 +255,22 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
             <span className="text-slate-500">·</span>
             {lifecycleBadge}
           </div>
+          {existingBet ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                Tu apuesta: {betPickLabel(existingBet, match.team_home, match.team_away)}
+              </span>
+              {resultBadge ? (
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${resultBadge.className}`}>
+                  {resultBadge.text}
+                </span>
+              ) : (
+                <span className="rounded-full bg-slate-700/60 px-2.5 py-0.5 text-xs text-slate-300">
+                  Pendiente de resultado
+                </span>
+              )}
+            </div>
+          ) : null}
           {teamsPending ? (
             <p className="text-xs text-amber-300/90">
               Equipos por definir — las apuestas abren cuando se confirmen los cupos de grupo o eliminatoria.

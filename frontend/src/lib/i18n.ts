@@ -16,3 +16,15 @@ export function formatPrediction(outcome: string | null | undefined): string {
       return outcome;
   }
 }
+
+export function formatBetPick(
+  prediction: string | null | undefined,
+  teamHome: string,
+  teamAway: string,
+): string {
+  if (!prediction) return "—";
+  if (prediction === "home") return teamHome;
+  if (prediction === "away") return teamAway;
+  if (prediction === "draw") return "Empate";
+  return prediction;
+}
