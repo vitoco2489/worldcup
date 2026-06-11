@@ -18,18 +18,19 @@ def list_all(db: Session) -> list[Match]:
 
 
 def list_recent(db: Session, *, now: datetime, limit: int = 20) -> list[Match]:
-    """Dashboard: same as upcoming — no scores, kickoff in the future (not finished/past)."""
+    """Dashboard: unfinished matches (includes in-progress until a final score is loaded)."""
     return list_upcoming(db, now=now, limit=limit)
 
 
 def list_upcoming(db: Session, *, now: datetime, limit: int = 50) -> list[Match]:
+    """Matches still without a final score — upcoming, locked, or in progress."""
+    _ = now
     return list(
         db.scalars(
             select(Match)
             .where(
                 Match.score_home.is_(None),
                 Match.score_away.is_(None),
-                Match.start_time > now,
                 Match.teams_resolved.is_(True),
             )
             .order_by(Match.start_time.asc())

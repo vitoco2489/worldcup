@@ -164,13 +164,9 @@ export function Dashboard() {
     () =>
       community.filter((row) => {
         const m = row.match;
-        return (
-          m.score_home == null &&
-          m.score_away == null &&
-          new Date(m.start_time).getTime() > effectiveNowMs
-        );
+        return m.score_home == null && m.score_away == null;
       }),
-    [community, effectiveNowMs],
+    [community],
   );
 
   const matchDays = useMemo(() => {
