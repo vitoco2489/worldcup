@@ -54,6 +54,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
   const [localPrediction, setLocalPrediction] = useState<string | null>(existingBet?.prediction ?? null);
   const [scoreHome, setScoreHome] = useState("");
   const [scoreAway, setScoreAway] = useState("");
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   useEffect(() => {
     setLocalPrediction(existingBet?.prediction ?? null);
@@ -134,6 +135,59 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
   useEffect(() => {
     if (impliedOutcome) setLocalPrediction(impliedOutcome);
   }, [impliedOutcome]);
+
+  const savedPrediction = existingBet?.prediction ?? null;
+  const savedScoreHome =
+    existingBet?.predicted_score_home != null ? String(existingBet.predicted_score_home) : "";
+  const savedScoreAway =
+    existingBet?.predicted_score_away != null ? String(existingBet.predicted_score_away) : "";
+
+  const effectivePrediction = impliedOutcome ?? localPrediction;
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!canBet) return false;
+    if (!effectivePrediction) return false;
+    if (!existingBet) return true;
+    const predChanged = effectivePrediction !== savedPrediction;
+    const scoresChanged = scoreHome !== savedScoreHome || scoreAway !== savedScoreAway;
+    return predChanged || scoresChanged;
+  }, [
+    canBet,
+    effectivePrediction,
+    existingBet,
+    savedPrediction,
+    scoreHome,
+    savedScoreHome,
+    scoreAway,
+    savedScoreAway,
+  ]);
+
+  function pick(prediction: "home" | "away" | "draw") {
+    if (!canBet || saving) return;
+    setLocalPrediction(prediction);
+    setError(null);
+    setResetConfirmOpen(false);
+  }
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) setResetConfirmOpen(false);
+  }, [hasUnsavedChanges]);
+
+  function resetDraft() {
+    if (existingBet) {
+      setLocalPrediction(savedPrediction);
+      setScoreHome(savedScoreHome);
+      setScoreAway(savedScoreAway);
+      toast.message(`Apuesta restaurada (${matchShortLabel})`);
+    } else {
+      setLocalPrediction(null);
+      setScoreHome("");
+      setScoreAway("");
+      toast.message(`Selección borrada (${matchShortLabel})`);
+    }
+    setError(null);
+    setResetConfirmOpen(false);
+  }
 
   function parseOptionalScores(): { ok: true; home: number | null; away: number | null } | { ok: false; message: string } {
     const hs = scoreHome.trim();
@@ -216,6 +270,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
   const showPredicted =
     existingBet?.predicted_score_home != null && existingBet?.predicted_score_away != null;
   const resultBadge = existingBet ? betResultBadge(existingBet) : null;
+  const matchShortLabel = `${match.team_home} vs ${match.team_away}`;
 
   return (
     <motion.div
@@ -310,42 +365,10 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-2">
-        {canBet && impliedOutcome ? (
-          <motion.button
-            type="button"
-            layout
-            disabled={saving}
-            whileTap={saving ? undefined : { scale: 0.96 }}
-            whileHover={saving ? undefined : { scale: 1.02, y: -1 }}
-            onClick={() => void save(impliedOutcome)}
-            className={`col-span-3 rounded-lg border px-4 py-2.5 text-sm font-semibold transition sm:col-auto ${
-              localPrediction === impliedOutcome
-                ? "cursor-pointer border-primary bg-primary/25 text-primary ring-2 ring-primary/45"
-                : "cursor-pointer border-slate-500 bg-slate-800 text-white ring-1 ring-slate-600/60 hover:border-primary/40 hover:bg-slate-700"
-            } ${saving ? "cursor-not-allowed opacity-50" : ""}`}
-          >
-            {saving ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Guardando...
-              </span>
-            ) : (
-              <>
-                Guardar{" "}
-            {impliedOutcome === "home"
-              ? match.team_home.slice(0, 18)
-              : impliedOutcome === "away"
-                ? match.team_away.slice(0, 18)
-                : "empate"}{" "}
-                (según marcador)
-              </>
-            )}
-          </motion.button>
-        ) : canBet ? (
-          (["home", "draw", "away"] as const).map((p) => {
-            const isSel = localPrediction === p;
-            const disabled = saving;
+      {canBet ? (
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-2">
+          {(["home", "draw", "away"] as const).map((p) => {
+            const isSel = effectivePrediction === p;
             const label =
               p === "home" ? match.team_home.slice(0, 14) : p === "away" ? match.team_away.slice(0, 14) : "Empate";
             return (
@@ -353,49 +376,26 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
                 key={p}
                 type="button"
                 layout
-                disabled={disabled}
-                whileTap={disabled ? undefined : { scale: 0.92 }}
-                whileHover={disabled ? undefined : { scale: 1.04, y: -2 }}
-                onClick={() => void save(p)}
+                disabled={saving}
+                whileTap={saving ? undefined : { scale: 0.92 }}
+                whileHover={saving ? undefined : { scale: 1.04, y: -2 }}
+                onClick={() => pick(p)}
                 className={`relative min-h-[44px] overflow-hidden rounded-lg border px-2 py-2.5 text-sm font-semibold transition sm:px-4 ${
                   isSel
                     ? "cursor-pointer border-primary bg-primary/20 text-primary ring-2 ring-primary/50 shadow-[0_0_16px_rgba(34,197,94,0.2)]"
                     : "cursor-pointer border-slate-500 bg-slate-800/90 text-white ring-1 ring-slate-600/60 shadow-sm hover:border-primary/45 hover:bg-slate-700 hover:text-white"
-                } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                } ${saving ? "cursor-not-allowed opacity-50" : ""}`}
               >
-                {burstChoice === p && choiceBurst > 0 ? (
-                  <motion.span
-                    key={choiceBurst}
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 bg-primary/15"
-                    initial={{ opacity: 0.7, scale: 0.85 }}
-                    animate={{ opacity: 0, scale: 1.35 }}
-                    transition={{ duration: 0.85 }}
-                  />
-                ) : null}
-                <span className="relative z-[1]">
-                {saving ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Guardando...
-                  </span>
-                ) : (
-                  label
-                )}
-                </span>
+                <span className="relative z-[1]">{label}</span>
               </motion.button>
             );
-          })
-        ) : null}
-      </div>
-
-      {canBet && !impliedOutcome ? (
-        <p className="mt-2 text-center text-xs text-slate-500 sm:text-left">Toca una opción para guardar tu apuesta</p>
+          })}
+        </div>
       ) : null}
 
-      {canBet && impliedOutcome ? (
-        <p className="mt-2 text-xs text-slate-500">
-          El 1×2 sigue tu marcador — usa el botón de arriba para guardar.
+      {canBet && !effectivePrediction ? (
+        <p className="mt-2 text-center text-xs text-slate-500 sm:text-left">
+          Paso 1: elige local, empate o visitante.
         </p>
       ) : null}
 
@@ -429,6 +429,83 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
           </label>
           <span className="pb-1 text-xs text-slate-500">Opcional · los dos o ninguno</span>
         </div>
+      ) : null}
+
+      {canBet && impliedOutcome ? (
+        <p className="mt-2 text-xs text-slate-500">
+          El 1×2 sigue tu marcador ({impliedOutcome === "home" ? match.team_home : impliedOutcome === "away" ? match.team_away : "empate"}).
+        </p>
+      ) : null}
+
+      {canBet && hasUnsavedChanges ? (
+        <div className="mt-4 space-y-2">
+          <p className="text-center text-xs font-medium text-amber-200/90 sm:text-left">
+            {existingBet
+              ? `Cambios sin guardar en ${matchShortLabel} — pulsa el botón amarillo.`
+              : `Tu elección en ${matchShortLabel} aún no está guardada.`}
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <motion.button
+              type="button"
+              disabled={saving || !effectivePrediction}
+              whileTap={saving ? undefined : { scale: 0.98 }}
+              whileHover={saving ? undefined : { scale: 1.01 }}
+              onClick={() => {
+                if (!effectivePrediction) return;
+                void save(effectivePrediction as "home" | "away" | "draw");
+              }}
+              className="w-full flex-1 rounded-xl border-2 border-amber-400 bg-amber-500/20 px-4 py-3.5 text-sm font-bold text-amber-50 shadow-[0_0_20px_rgba(251,191,36,0.25)] ring-2 ring-amber-400/40 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Guardando…
+                </span>
+              ) : (
+                <>👆 Guardar apuesta de este partido</>
+              )}
+            </motion.button>
+            {!resetConfirmOpen ? (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setResetConfirmOpen(true)}
+                className="w-full shrink-0 rounded-xl border border-slate-600 bg-slate-800 px-4 py-3.5 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                Deshacer en este partido
+              </button>
+            ) : null}
+          </div>
+          {resetConfirmOpen ? (
+            <div className="rounded-xl border border-slate-600 bg-slate-900/90 px-3 py-3">
+              <p className="text-sm font-medium text-slate-100">{matchShortLabel}</p>
+              <p className="mt-1 text-sm text-slate-300">
+                {existingBet
+                  ? "¿Descartar los cambios y volver a lo que tenías guardado en este partido?"
+                  : "¿Borrar tu elección en este partido y empezar de nuevo?"}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">Tus apuestas en otros partidos no se modifican.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={resetDraft}
+                  className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-600"
+                >
+                  Sí, deshacer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResetConfirmOpen(false)}
+                  className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
+                >
+                  No, seguir editando
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : canBet && existingBet && effectivePrediction ? (
+        <p className="mt-3 text-center text-xs text-emerald-400/90 sm:text-left">✓ Apuesta guardada en el servidor</p>
       ) : null}
 
       {error ? <p className="mt-2 text-xs text-danger">{error}</p> : null}
