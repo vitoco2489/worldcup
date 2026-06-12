@@ -132,10 +132,6 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
     return "draw" as const;
   }, [scoreHome, scoreAway]);
 
-  useEffect(() => {
-    if (impliedOutcome) setLocalPrediction(impliedOutcome);
-  }, [impliedOutcome]);
-
   const savedPrediction = existingBet?.prediction ?? null;
   const savedScoreHome =
     existingBet?.predicted_score_home != null ? String(existingBet.predicted_score_home) : "";
@@ -162,9 +158,26 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
     savedScoreAway,
   ]);
 
+  function syncPredictionFromScores(home: string, away: string) {
+    const hs = home.trim();
+    const as = away.trim();
+    if (hs === "" || as === "") return;
+    const h = parseInt(hs, 10);
+    const a = parseInt(as, 10);
+    if (Number.isNaN(h) || Number.isNaN(a)) return;
+    if (h > a) setLocalPrediction("home");
+    else if (a > h) setLocalPrediction("away");
+    else setLocalPrediction("draw");
+  }
+
   function pick(prediction: "home" | "away" | "draw") {
     if (!canBet || saving) return;
     setLocalPrediction(prediction);
+    // Marcador guardado fijaba el 1×2 — al elegir con botón, suelta el marcador.
+    if (scoreHome !== "" || scoreAway !== "") {
+      setScoreHome("");
+      setScoreAway("");
+    }
     setError(null);
     setResetConfirmOpen(false);
   }
@@ -409,7 +422,11 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
               step={1}
               inputMode="numeric"
               value={scoreHome}
-              onChange={(e) => setScoreHome(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setScoreHome(v);
+                syncPredictionFromScores(v, scoreAway);
+              }}
               className="w-24 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
               placeholder="opc."
             />
@@ -422,7 +439,11 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
               step={1}
               inputMode="numeric"
               value={scoreAway}
-              onChange={(e) => setScoreAway(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setScoreAway(v);
+                syncPredictionFromScores(scoreHome, v);
+              }}
               className="w-24 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
               placeholder="opc."
             />
