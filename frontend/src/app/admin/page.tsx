@@ -60,6 +60,12 @@ function predictionFromScores(home: number, away: number): "home" | "away" | "dr
   return "draw";
 }
 
+function predictionLabel(prediction: "home" | "away" | "draw", match: Match | null): string {
+  if (prediction === "home") return match?.team_home ?? "Local";
+  if (prediction === "away") return match?.team_away ?? "Visitante";
+  return "Empate";
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [me, setMe] = useState<UserMe | null>(null);
@@ -466,6 +472,21 @@ export default function AdminPage() {
     (m) => m.status !== "finished" && m.score_home == null && m.score_away == null && m.teams_resolved !== false,
   );
   const selectedManualMatch = manualBetMatches.find((m) => m.id === manualBetMatchId) ?? null;
+  const manualHomeScorePreview = Number.parseInt(manualBetScoreHome.trim(), 10);
+  const manualAwayScorePreview = Number.parseInt(manualBetScoreAway.trim(), 10);
+  const hasManualScoreHome = manualBetScoreHome.trim() !== "";
+  const hasManualScoreAway = manualBetScoreAway.trim() !== "";
+  const hasCompleteManualScore = hasManualScoreHome && hasManualScoreAway;
+  const hasPartialManualScore = hasManualScoreHome !== hasManualScoreAway;
+  const manualScoreIsValid =
+    hasCompleteManualScore &&
+    !Number.isNaN(manualHomeScorePreview) &&
+    !Number.isNaN(manualAwayScorePreview) &&
+    manualHomeScorePreview >= 0 &&
+    manualAwayScorePreview >= 0;
+  const manualPreviewPrediction = manualScoreIsValid
+    ? predictionFromScores(manualHomeScorePreview, manualAwayScorePreview)
+    : manualBetPrediction;
 
   if (!me) {
     return <div className="min-h-screen bg-pitch px-4 py-8 text-slate-300">Cargando…</div>;
@@ -672,7 +693,7 @@ export default function AdminPage() {
 
           <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
             <label className="flex flex-col gap-1 text-xs text-slate-400">
-              Resultado
+              Resultado si NO ingresas marcador
               <select
                 value={manualBetPrediction}
                 onChange={(e) => setManualBetPrediction(e.target.value as "home" | "away" | "draw")}
@@ -684,7 +705,7 @@ export default function AdminPage() {
               </select>
             </label>
             <label className="flex flex-col gap-1 text-xs text-slate-400">
-              Goles local (opc.)
+              Goles {selectedManualMatch?.team_home ?? "local"}
               <input
                 type="number"
                 min={0}
@@ -692,11 +713,11 @@ export default function AdminPage() {
                 value={manualBetScoreHome}
                 onChange={(e) => setManualBetScoreHome(e.target.value)}
                 className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white sm:w-32"
-                placeholder="opc."
+                placeholder="opcional"
               />
             </label>
             <label className="flex flex-col gap-1 text-xs text-slate-400">
-              Goles visita (opc.)
+              Goles {selectedManualMatch?.team_away ?? "visita"}
               <input
                 type="number"
                 min={0}
@@ -704,10 +725,44 @@ export default function AdminPage() {
                 value={manualBetScoreAway}
                 onChange={(e) => setManualBetScoreAway(e.target.value)}
                 className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white sm:w-32"
-                placeholder="opc."
+                placeholder="opcional"
               />
             </label>
           </div>
+
+          {selectedManualMatch ? (
+            <div className="rounded-xl border border-violet-500/25 bg-violet-500/10 p-3 text-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Vista previa antes de guardar</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                <div className="rounded-lg bg-slate-950/50 px-3 py-2">
+                  <p className="text-xs text-slate-500">Local</p>
+                  <p className="font-semibold text-slate-100">{selectedManualMatch.team_home}</p>
+                </div>
+                <p className="text-center font-mono text-lg font-bold text-white">
+                  {hasCompleteManualScore ? `${manualBetScoreHome.trim()} - ${manualBetScoreAway.trim()}` : "vs"}
+                </p>
+                <div className="rounded-lg bg-slate-950/50 px-3 py-2 text-left sm:text-right">
+                  <p className="text-xs text-slate-500">Visita</p>
+                  <p className="font-semibold text-slate-100">{selectedManualMatch.team_away}</p>
+                </div>
+              </div>
+              {hasPartialManualScore ? (
+                <p className="mt-2 text-xs text-amber-300">Ingresa ambos goles o deja ambos campos vacíos.</p>
+              ) : manualScoreIsValid ? (
+                <p className="mt-2 text-xs text-violet-100">
+                  Se guardará como: <span className="font-semibold">{predictionLabel(manualPreviewPrediction, selectedManualMatch)}</span>.
+                  El resultado se calcula desde el marcador, no desde el selector.
+                </p>
+              ) : hasCompleteManualScore ? (
+                <p className="mt-2 text-xs text-amber-300">Revisa el marcador: usa enteros no negativos.</p>
+              ) : (
+                <p className="mt-2 text-xs text-violet-100">
+                  Se guardará como: <span className="font-semibold">{predictionLabel(manualPreviewPrediction, selectedManualMatch)}</span>,
+                  sin marcador exacto.
+                </p>
+              )}
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -719,7 +774,7 @@ export default function AdminPage() {
               {isLoading("manual_bet") ? "Guardando…" : "Guardar apuesta manual"}
             </button>
             <p className="text-xs text-slate-500">
-              Si ingresas marcador, el 1x2 se ajusta automaticamente a esos goles.
+              El primer campo siempre es el equipo local y el segundo siempre el visitante.
             </p>
           </div>
         </section>
