@@ -11,6 +11,7 @@ from app.dependencies import get_admin_user
 from app.models.user import User
 from app.repositories import match_repo, user_repo
 from app.schemas.admin import (
+    AdminManualBetRequest,
     AdminUserRow,
     AllowedEmailCreate,
     AllowedEmailRow,
@@ -292,6 +293,27 @@ def simulate_bet(
     if not m:
         raise HTTPException(status_code=500, detail="Match missing after simulation")
     out = bet_service.bet_to_public(bet, m, db=db)
+    db.commit()
+    return out
+
+
+@router.post("/manual-bet", response_model=BetPublic)
+def manual_bet(
+    body: AdminManualBetRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    user = user_repo.get_by_id(db, body.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    out = bet_service.admin_create_or_update_manual_bet(
+        db,
+        user_id=body.user_id,
+        match_id=body.match_id,
+        prediction=body.prediction,
+        predicted_score_home=body.predicted_score_home,
+        predicted_score_away=body.predicted_score_away,
+    )
     db.commit()
     return out
 

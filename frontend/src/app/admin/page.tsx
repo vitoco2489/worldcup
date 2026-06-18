@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type {
+  AdminManualBetResponse,
   AdminUserRow,
   AllowedEmailRow,
+  Match,
   Pool,
   ResetAllDataResponse,
   ResetBetsResponse,
@@ -41,7 +43,22 @@ type ActionKey =
   | "reset_matches"
   | "load_schedule"
   | "add_allowed"
-  | "remove_allowed";
+  | "remove_allowed"
+  | "manual_bet";
+
+function formatAdminMatchOption(match: Match): string {
+  const when = new Date(match.start_time).toLocaleString("es-CL", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+  return `${when} · ${match.team_home} vs ${match.team_away}`;
+}
+
+function predictionFromScores(home: number, away: number): "home" | "away" | "draw" {
+  if (home > away) return "home";
+  if (away > home) return "away";
+  return "draw";
+}
 
 export default function AdminPage() {
   const router = useRouter();
@@ -59,9 +76,15 @@ export default function AdminPage() {
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState("");
   const [allowedEmails, setAllowedEmails] = useState<AllowedEmailRow[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [togglingEntryUserId, setTogglingEntryUserId] = useState<string | null>(null);
   const [newInviteEmail, setNewInviteEmail] = useState("");
   const [newInviteNote, setNewInviteNote] = useState("");
+  const [manualBetUserId, setManualBetUserId] = useState("");
+  const [manualBetMatchId, setManualBetMatchId] = useState("");
+  const [manualBetPrediction, setManualBetPrediction] = useState<"home" | "away" | "draw">("home");
+  const [manualBetScoreHome, setManualBetScoreHome] = useState("");
+  const [manualBetScoreAway, setManualBetScoreAway] = useState("");
   const [loadingAction, setLoadingAction] = useState<ActionKey | null>(null);
   const [whatsappReminder, setWhatsappReminder] = useState<WhatsAppReminder | null>(null);
   const [loadingWhatsapp, setLoadingWhatsapp] = useState(false);
@@ -97,11 +120,12 @@ export default function AdminPage() {
       router.replace("/");
       return;
     }
-    const [u, p, allowed, users] = await Promise.all([
+    const [u, p, allowed, users, allMatches] = await Promise.all([
       fetchMe(),
       apiFetch<Pool>("/pool"),
       apiFetch<AllowedEmailRow[]>("/admin/allowed-emails"),
       apiFetch<AdminUserRow[]>("/admin/users"),
+      apiFetch<Match[]>("/matches"),
     ]);
     if (!u.is_admin) {
       router.replace("/");
@@ -111,6 +135,12 @@ export default function AdminPage() {
     setPool(p);
     setAllowedEmails(allowed);
     setAdminUsers(users);
+    setMatches(allMatches);
+    const firstManualBetMatch = allMatches.find(
+      (m) => m.status === "scheduled" && m.score_home == null && m.score_away == null && m.teams_resolved !== false,
+    );
+    setManualBetUserId((current) => current || users[0]?.id || "");
+    setManualBetMatchId((current) => current || firstManualBetMatch?.id || "");
     setPoolInput(String(p.pool_total_usd ?? 0));
     await loadWhatsappReminder();
   }, [loadWhatsappReminder, router]);
@@ -191,6 +221,55 @@ export default function AdminPage() {
       toast.success("Pozo actualizado");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo actualizar el pozo");
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
+  async function saveManualBet() {
+    if (!manualBetUserId || !manualBetMatchId) {
+      toast.error("Elige usuario y partido.");
+      return;
+    }
+    const homeRaw = manualBetScoreHome.trim();
+    const awayRaw = manualBetScoreAway.trim();
+    let scoreHome: number | null = null;
+    let scoreAway: number | null = null;
+    let prediction = manualBetPrediction;
+    if (homeRaw !== "" || awayRaw !== "") {
+      if (homeRaw === "" || awayRaw === "") {
+        toast.error("Ingresa ambos marcadores o déjalos vacíos.");
+        return;
+      }
+      const h = Number.parseInt(homeRaw, 10);
+      const a = Number.parseInt(awayRaw, 10);
+      if (Number.isNaN(h) || Number.isNaN(a) || h < 0 || a < 0) {
+        toast.error("Los goles deben ser enteros no negativos.");
+        return;
+      }
+      scoreHome = h;
+      scoreAway = a;
+      prediction = predictionFromScores(h, a);
+    }
+
+    setLoadingAction("manual_bet");
+    try {
+      await apiFetch<AdminManualBetResponse>("/admin/manual-bet", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: manualBetUserId,
+          match_id: manualBetMatchId,
+          prediction,
+          predicted_score_home: scoreHome,
+          predicted_score_away: scoreAway,
+        }),
+      });
+      const userName = adminUsers.find((u) => u.id === manualBetUserId)?.name ?? "Usuario";
+      toast.success(`Apuesta guardada para ${userName}`);
+      setManualBetScoreHome("");
+      setManualBetScoreAway("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar la apuesta manual");
     } finally {
       setLoadingAction(null);
     }
@@ -383,6 +462,11 @@ export default function AdminPage() {
     }
   }
 
+  const manualBetMatches = matches.filter(
+    (m) => m.status === "scheduled" && m.score_home == null && m.score_away == null && m.teams_resolved !== false,
+  );
+  const selectedManualMatch = manualBetMatches.find((m) => m.id === manualBetMatchId) ?? null;
+
   if (!me) {
     return <div className="min-h-screen bg-pitch px-4 py-8 text-slate-300">Cargando…</div>;
   }
@@ -540,6 +624,104 @@ export default function AdminPage() {
               ))
             )}
           </ul>
+        </section>
+
+        <section className="rounded-xl border border-violet-500/35 bg-card p-4 space-y-3">
+          <div>
+            <p className="font-semibold text-violet-200">Apuesta manual para olvidadizos</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Carga o corrige una apuesta para otro jugador. Sirve para casos avisados a tiempo: el backend no acepta
+              partidos ya iniciados ni finalizados.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Persona
+              <select
+                value={manualBetUserId}
+                onChange={(e) => setManualBetUserId(e.target.value)}
+                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-200"
+              >
+                {adminUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Partido
+              <select
+                value={manualBetMatchId}
+                onChange={(e) => setManualBetMatchId(e.target.value)}
+                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-200"
+              >
+                {manualBetMatches.length === 0 ? (
+                  <option value="">Sin partidos disponibles</option>
+                ) : (
+                  manualBetMatches.map((match) => (
+                    <option key={match.id} value={match.id}>
+                      {formatAdminMatchOption(match)}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Resultado
+              <select
+                value={manualBetPrediction}
+                onChange={(e) => setManualBetPrediction(e.target.value as "home" | "away" | "draw")}
+                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-200"
+              >
+                <option value="home">{selectedManualMatch?.team_home ?? "Local"}</option>
+                <option value="draw">Empate</option>
+                <option value="away">{selectedManualMatch?.team_away ?? "Visitante"}</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Goles local (opc.)
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={manualBetScoreHome}
+                onChange={(e) => setManualBetScoreHome(e.target.value)}
+                className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white sm:w-32"
+                placeholder="opc."
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Goles visita (opc.)
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={manualBetScoreAway}
+                onChange={(e) => setManualBetScoreAway(e.target.value)}
+                className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white sm:w-32"
+                placeholder="opc."
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={isLoading("manual_bet") || !manualBetUserId || !manualBetMatchId}
+              onClick={() => void saveManualBet()}
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-60"
+            >
+              {isLoading("manual_bet") ? "Guardando…" : "Guardar apuesta manual"}
+            </button>
+            <p className="text-xs text-slate-500">
+              Si ingresas marcador, el 1x2 se ajusta automaticamente a esos goles.
+            </p>
+          </div>
         </section>
 
         <section className="rounded-xl border border-emerald-500/35 bg-card p-4 space-y-3">

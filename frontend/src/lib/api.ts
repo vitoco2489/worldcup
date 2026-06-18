@@ -52,6 +52,8 @@ export type Bet = {
   match?: Match;
 };
 
+export type AdminManualBetResponse = Bet;
+
 export type PredictionCounts = {
   home: number;
   draw: number;

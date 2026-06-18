@@ -68,7 +68,7 @@ def ensure_bet_lock_state(bet: Bet, match: Match, *, db: Session, now: datetime 
 def bet_to_public(bet: Bet, match: Match, *, db: Session) -> BetPublic:
     now = get_current_time(db=db)
     ensure_bet_lock_state(bet, match, db=db, now=now)
-    can_edit = is_bet_editable(match.start_time, now=now) and not bet.locked and not bet.resolved
+    can_edit = False
     correct: bool | None = None
     exact_score_hit: bool | None = None
     if bet.resolved and match.status == "finished" and match.score_home is not None:
@@ -122,18 +122,71 @@ def create_or_update_bet(
 
     existing = bet_repo.get_by_user_and_match(db, user_id, match_id)
     if existing:
-        if existing.locked or existing.resolved:
-            raise HTTPException(status_code=400, detail="Bet is locked")
-        if not is_bet_editable(match.start_time, now=now):
-            raise HTTPException(status_code=400, detail="Betting is locked for this match")
+        same_bet = (
+            existing.prediction == prediction
+            and existing.predicted_score_home == predicted_score_home
+            and existing.predicted_score_away == predicted_score_away
+        )
+        if same_bet:
+            return bet_to_public(existing, match, db=db)
+        raise HTTPException(status_code=400, detail="La apuesta ya fue guardada y no se puede cambiar")
+    locked = not is_bet_editable(match.start_time, now=now)
+    bet = bet_repo.create(
+        db,
+        user_id=user_id,
+        match_id=match_id,
+        prediction=prediction,
+        created_at=now,
+        updated_at=now,
+        locked=locked,
+        predicted_score_home=predicted_score_home,
+        predicted_score_away=predicted_score_away,
+    )
+    db.flush()
+    return bet_to_public(bet, match, db=db)
+
+
+def admin_create_or_update_manual_bet(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    match_id: uuid.UUID,
+    prediction: str,
+    predicted_score_home: int | None = None,
+    predicted_score_away: int | None = None,
+) -> BetPublic:
+    now = get_current_time(db=db)
+    match = match_repo.get_by_id(db, match_id)
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+    if not match.teams_resolved:
+        raise HTTPException(
+            status_code=400,
+            detail="Teams are not confirmed yet for this match (waiting on group/knockout results)",
+        )
+    if match.status != "scheduled" or match.score_home is not None or match.score_away is not None:
+        raise HTTPException(status_code=400, detail="Manual bets are only allowed before the match starts")
+    if now >= match.start_time:
+        raise HTTPException(status_code=400, detail="Manual bets are only allowed before the match starts")
+    if (predicted_score_home is None) ^ (predicted_score_away is None):
+        raise HTTPException(status_code=400, detail="Provide both predicted scores or omit both")
+    if predicted_score_home is not None:
+        if predicted_score_away is None or predicted_score_home < 0 or predicted_score_away < 0:
+            raise HTTPException(status_code=400, detail="Scores must be non-negative integers")
+
+    locked = not is_bet_editable(match.start_time, now=now)
+    existing = bet_repo.get_by_user_and_match(db, user_id, match_id)
+    if existing:
+        if existing.resolved:
+            raise HTTPException(status_code=400, detail="Bet is already resolved")
         existing.prediction = prediction
         existing.predicted_score_home = predicted_score_home
         existing.predicted_score_away = predicted_score_away
         existing.updated_at = now
-        existing.locked = False
+        existing.locked = locked
         db.flush()
         return bet_to_public(existing, match, db=db)
-    locked = not is_bet_editable(match.start_time, now=now)
+
     bet = bet_repo.create(
         db,
         user_id=user_id,

@@ -1,7 +1,10 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from app.utils.betting_validation import implied_outcome_from_scores
 
 
 class MatchLoadItem(BaseModel):
@@ -74,6 +77,25 @@ class SimulateBetRequest(BaseModel):
     match_id: UUID
     score_home: int = Field(ge=0)
     score_away: int = Field(ge=0)
+
+
+class AdminManualBetRequest(BaseModel):
+    user_id: UUID
+    match_id: UUID
+    prediction: Literal["home", "away", "draw"]
+    predicted_score_home: int | None = None
+    predicted_score_away: int | None = None
+
+    @model_validator(mode="after")
+    def scores_and_outcome(self):
+        h, a = self.predicted_score_home, self.predicted_score_away
+        if (h is None) ^ (a is None):
+            raise ValueError("Provide both predicted scores or omit both")
+        if h is not None:
+            if a is None or h < 0 or a < 0:
+                raise ValueError("Scores must be non-negative integers")
+            object.__setattr__(self, "prediction", implied_outcome_from_scores(h, a))
+        return self
 
 
 class ResetSimulationResponse(BaseModel):
