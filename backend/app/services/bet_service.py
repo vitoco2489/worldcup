@@ -164,10 +164,8 @@ def admin_create_or_update_manual_bet(
             status_code=400,
             detail="Teams are not confirmed yet for this match (waiting on group/knockout results)",
         )
-    if match.status != "scheduled" or match.score_home is not None or match.score_away is not None:
-        raise HTTPException(status_code=400, detail="Manual bets are only allowed before the match starts")
-    if now >= match.start_time:
-        raise HTTPException(status_code=400, detail="Manual bets are only allowed before the match starts")
+    if match.status == "finished" or match.score_home is not None or match.score_away is not None:
+        raise HTTPException(status_code=400, detail="Manual bets are only allowed before the match is finished")
     if (predicted_score_home is None) ^ (predicted_score_away is None):
         raise HTTPException(status_code=400, detail="Provide both predicted scores or omit both")
     if predicted_score_home is not None:

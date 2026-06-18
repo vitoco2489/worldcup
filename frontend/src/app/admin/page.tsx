@@ -137,7 +137,7 @@ export default function AdminPage() {
     setAdminUsers(users);
     setMatches(allMatches);
     const firstManualBetMatch = allMatches.find(
-      (m) => m.status === "scheduled" && m.score_home == null && m.score_away == null && m.teams_resolved !== false,
+      (m) => m.status !== "finished" && m.score_home == null && m.score_away == null && m.teams_resolved !== false,
     );
     setManualBetUserId((current) => current || users[0]?.id || "");
     setManualBetMatchId((current) => current || firstManualBetMatch?.id || "");
@@ -463,7 +463,7 @@ export default function AdminPage() {
   }
 
   const manualBetMatches = matches.filter(
-    (m) => m.status === "scheduled" && m.score_home == null && m.score_away == null && m.teams_resolved !== false,
+    (m) => m.status !== "finished" && m.score_home == null && m.score_away == null && m.teams_resolved !== false,
   );
   const selectedManualMatch = manualBetMatches.find((m) => m.id === manualBetMatchId) ?? null;
 
@@ -631,7 +631,7 @@ export default function AdminPage() {
             <p className="font-semibold text-violet-200">Apuesta manual para olvidadizos</p>
             <p className="mt-1 text-xs text-slate-400">
               Carga o corrige una apuesta para otro jugador. Sirve para casos avisados a tiempo: el backend no acepta
-              partidos ya iniciados ni finalizados.
+              partidos finalizados ni con marcador cargado.
             </p>
           </div>
 
