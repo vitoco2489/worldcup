@@ -68,7 +68,7 @@ def ensure_bet_lock_state(bet: Bet, match: Match, *, db: Session, now: datetime 
 def bet_to_public(bet: Bet, match: Match, *, db: Session) -> BetPublic:
     now = get_current_time(db=db)
     ensure_bet_lock_state(bet, match, db=db, now=now)
-    can_edit = False
+    can_edit = is_bet_editable(match.start_time, now=now) and not bet.locked and not bet.resolved
     correct: bool | None = None
     exact_score_hit: bool | None = None
     if bet.resolved and match.status == "finished" and match.score_home is not None:
@@ -122,14 +122,17 @@ def create_or_update_bet(
 
     existing = bet_repo.get_by_user_and_match(db, user_id, match_id)
     if existing:
-        same_bet = (
-            existing.prediction == prediction
-            and existing.predicted_score_home == predicted_score_home
-            and existing.predicted_score_away == predicted_score_away
-        )
-        if same_bet:
-            return bet_to_public(existing, match, db=db)
-        raise HTTPException(status_code=400, detail="La apuesta ya fue guardada y no se puede cambiar")
+        if existing.locked or existing.resolved:
+            raise HTTPException(status_code=400, detail="Bet is locked")
+        if not is_bet_editable(match.start_time, now=now):
+            raise HTTPException(status_code=400, detail="Betting is locked for this match")
+        existing.prediction = prediction
+        existing.predicted_score_home = predicted_score_home
+        existing.predicted_score_away = predicted_score_away
+        existing.updated_at = now
+        existing.locked = False
+        db.flush()
+        return bet_to_public(existing, match, db=db)
     locked = not is_bet_editable(match.start_time, now=now)
     bet = bet_repo.create(
         db,

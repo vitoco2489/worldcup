@@ -10,7 +10,7 @@ import { apiFetch, fetchMe, getToken, loginWithGoogle } from "@/lib/api";
 import { GoogleSignIn } from "./GoogleSignIn";
 import { useEffectiveNow } from "@/hooks/useEffectiveNow";
 import { DASHBOARD_TABS, type DashboardTab, parseDashboardTab } from "@/lib/dashboardTabs";
-import { defaultUpcomingDayKey, isWithinBetUrgentWindow, localDateKey } from "@/lib/time";
+import { defaultUpcomingDayKey, isWithinBetUrgentWindow, localDateKey, matchLifecycleStatus } from "@/lib/time";
 import { BracketPanel } from "./panels/BracketPanel";
 import { GroupsPanel } from "./panels/GroupsPanel";
 import { RankingPanel } from "./panels/RankingPanel";
@@ -239,6 +239,15 @@ export function Dashboard() {
     return communityDashboard.filter((row) => localDateKey(row.match.start_time) === selectedDay);
   }, [communityDashboard, selectedDay]);
 
+  const communityInProgress = useMemo(
+    () =>
+      communityDashboard.filter((row) => {
+        const m = row.match;
+        return matchLifecycleStatus(m.start_time, effectiveNowMs, m.score_home, m.score_away) === "in_progress";
+      }),
+    [communityDashboard, effectiveNowMs],
+  );
+
   const dayMatchCount = useMemo(() => {
     if (!selectedDay) return recent.length + myBetCards.filter(({ match }) => !recent.some((m) => m.id === match.id)).length;
     const ids = new Set<string>();
@@ -429,6 +438,21 @@ export function Dashboard() {
 
           {selectedDay ? <DailyMessage dateKey={selectedDay} /> : null}
 
+          {communityInProgress.length > 0 ? (
+            <section className="space-y-3 rounded-2xl border border-sky-500/30 bg-sky-500/5 p-4 shadow-[0_0_30px_rgba(14,165,233,0.08)]">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">En vivo</p>
+                  <h2 className="text-xl font-bold text-white">Apuestas en curso</h2>
+                </div>
+                <p className="max-w-xl text-sm text-slate-300">
+                  Solo partidos que ya empezaron y aún no tienen resultado cargado. Los nombres se revelan por lado.
+                </p>
+              </div>
+              <CommunityBets rows={communityInProgress} variant="live" />
+            </section>
+          ) : null}
+
           <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
             <div className="min-w-0 flex-1 space-y-8">
               {recent.length > 0 && selectedDay ? (
@@ -511,12 +535,16 @@ export function Dashboard() {
                   <li className="text-sky-200/80">Resultado: marcador a los 90 min (sin alargue ni penales)</li>
                 </ul>
               </div>
-              <h2 className="text-lg font-semibold text-white">Apuestas del grupo</h2>
-              <p className="text-xs text-slate-500">
-                Porcentajes antes del pitido; después se muestran los nombres por lado.
-                {selectedDay && matchDays.length > 1 ? " Filtrado al día seleccionado." : null}
-              </p>
-              <CommunityBets rows={communityDay} />
+              {communityInProgress.length === 0 ? (
+                <>
+                  <h2 className="text-lg font-semibold text-white">Apuestas del grupo</h2>
+                  <p className="text-xs text-slate-500">
+                    Porcentajes antes del pitido; después se muestran los nombres por lado.
+                    {selectedDay && matchDays.length > 1 ? " Filtrado al día seleccionado." : null}
+                  </p>
+                  <CommunityBets rows={communityDay} />
+                </>
+              ) : null}
             </aside>
           </div>
         </>
