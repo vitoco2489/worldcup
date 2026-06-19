@@ -40,6 +40,7 @@ from app.schemas.admin import (
     SimulateBetRequest,
     SimulateMatchRequest,
     SimulateTimeRequest,
+    TestEmailResponse,
     WhatsAppReminderResponse,
 )
 from app.schemas.bet import BetPublic
@@ -50,6 +51,7 @@ from app.services import (
     allowlist_service,
     bet_service,
     clock_service,
+    email_service,
     match_service,
     pool_service,
     results_service,
@@ -195,7 +197,26 @@ def update_match_result(
         score_away=body.score_away,
     )
     db.commit()
-    return MatchResultUpdateResponse(match_id=body.match_id, message="Match result saved")
+    email_sent, email_error = email_service.send_match_result_email(db, body.match_id)
+    return MatchResultUpdateResponse(
+        match_id=body.match_id,
+        message="Match result saved",
+        email_sent=email_sent,
+        email_error=email_error,
+    )
+
+
+@router.post("/test-email", response_model=TestEmailResponse)
+def send_test_email(
+    admin: User = Depends(get_admin_user),
+):
+    email_sent, email_error = email_service.send_test_email(admin.email)
+    return TestEmailResponse(
+        email_sent=email_sent,
+        email_error=email_error,
+        recipient=admin.email,
+        message="Test email sent" if email_sent else "Test email failed",
+    )
 
 
 @router.post("/update-match-results-bulk", response_model=MatchResultsBulkUpdateResponse)

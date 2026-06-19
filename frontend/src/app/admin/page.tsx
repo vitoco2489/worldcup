@@ -16,6 +16,7 @@ import type {
   ResetSimulationResponse,
   ScheduleLoadResponse,
   ServerTimeResponse,
+  TestEmailResponse,
   UserMe,
   WhatsAppReminder,
 } from "@/lib/api";
@@ -44,7 +45,8 @@ type ActionKey =
   | "load_schedule"
   | "add_allowed"
   | "remove_allowed"
-  | "manual_bet";
+  | "manual_bet"
+  | "test_email";
 
 function formatAdminMatchOption(match: Match): string {
   const when = new Date(match.start_time).toLocaleString("es-CL", {
@@ -117,6 +119,24 @@ export default function AdminPage() {
       toast.success("Mensaje copiado — pégalo en WhatsApp");
     } catch {
       toast.error("No se pudo copiar. Selecciona el texto manualmente.");
+    }
+  }
+
+  async function sendTestEmail() {
+    setLoadingAction("test_email");
+    try {
+      const result = await apiFetch<TestEmailResponse>("/admin/test-email", { method: "POST" });
+      if (result.email_sent) {
+        toast.success(`Correo de prueba enviado a ${result.recipient}`);
+      } else if (result.email_error) {
+        toast.warning(`No se pudo enviar el correo: ${result.email_error}`);
+      } else {
+        toast.warning("No se pudo enviar el correo de prueba");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al enviar el correo de prueba");
+    } finally {
+      setLoadingAction(null);
     }
   }
 
@@ -582,6 +602,32 @@ export default function AdminPage() {
           ) : (
             <p className="text-sm text-slate-500">{loadingWhatsapp ? "Generando mensaje…" : "Sin datos."}</p>
           )}
+        </section>
+
+        <section className="rounded-xl border border-emerald-500/35 bg-card p-4 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-semibold text-emerald-200">Correo SMTP — prueba</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Envía un correo de prueba solo a tu cuenta
+                {me?.email ? (
+                  <>
+                    {" "}
+                    (<span className="text-slate-300">{me.email}</span>)
+                  </>
+                ) : null}
+                . Útil para verificar la configuración SMTP sin notificar a todos los jugadores.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={isLoading("test_email")}
+              onClick={() => void sendTestEmail()}
+              className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+            >
+              {isLoading("test_email") ? "Enviando…" : "Enviar email de prueba"}
+            </button>
+          </div>
         </section>
 
         <section className="rounded-xl border border-sky-500/35 bg-card p-4 space-y-3">

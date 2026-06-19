@@ -264,6 +264,20 @@ export type ResetMatchesResponse = {
   simulation_snapshots_deleted: number;
 };
 
+export type MatchResultUpdateResponse = {
+  match_id: string;
+  message: string;
+  email_sent: boolean;
+  email_error: string | null;
+};
+
+export type TestEmailResponse = {
+  email_sent: boolean;
+  email_error: string | null;
+  recipient: string;
+  message: string;
+};
+
 export type ServerTimeResponse = {
   now: string;
   is_simulated: boolean;
