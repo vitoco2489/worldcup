@@ -32,16 +32,6 @@ services:
       CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET in .env}
       PRIZE_POOL_LABEL: ${PRIZE_POOL_LABEL:-Vitobet Pool 2026}
       PRIZE_POOL_AMOUNT_USD: ${PRIZE_POOL_AMOUNT_USD:-—}
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-}
-      SMTP_ENABLED: ${SMTP_ENABLED:-false}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-VitoBet}
-      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
-      SMTP_USE_SSL: ${SMTP_USE_SSL:-false}
     expose:
       - "8000"
     depends_on:

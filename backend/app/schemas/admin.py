@@ -158,15 +158,6 @@ class MatchResultUpdateRequest(BaseModel):
 class MatchResultUpdateResponse(BaseModel):
     match_id: UUID
     message: str
-    email_sent: bool = False
-    email_error: str | None = None
-
-
-class TestEmailResponse(BaseModel):
-    email_sent: bool
-    email_error: str | None = None
-    recipient: str
-    message: str
 
 
 class MatchResultsBulkUpdateRequest(BaseModel):

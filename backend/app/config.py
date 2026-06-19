@@ -16,15 +16,6 @@ class Settings(BaseSettings):
     admin_emails: str = ""
     prize_pool_label: str = "Friends Pool 2026"
     prize_pool_amount_usd: str = "—"
-    smtp_enabled: bool = False
-    smtp_host: str = ""
-    smtp_port: int = 587
-    smtp_username: str = ""
-    smtp_password: str = ""
-    smtp_from_email: str = ""
-    smtp_from_name: str = "VitoBet"
-    smtp_use_tls: bool = True
-    smtp_use_ssl: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:

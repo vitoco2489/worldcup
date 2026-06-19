@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import type { FinishedMatchTable, Match, MatchResultUpdateResponse, UserMe } from "@/lib/api";
+import type { FinishedMatchTable, Match, UserMe } from "@/lib/api";
 import { apiFetch, fetchMe, getToken } from "@/lib/api";
 import { useEffectiveNow } from "@/hooks/useEffectiveNow";
 import { formatLocal, matchLifecycleStatus, type MatchLifecycleStatus } from "@/lib/time";
@@ -99,7 +99,7 @@ export default function AdminMatchesPage() {
     const scoreAway = Number(d.scoreAway);
     setRowSavingId(matchId);
     try {
-      const result = await apiFetch<MatchResultUpdateResponse>("/admin/update-match-result", {
+      await apiFetch("/admin/update-match-result", {
         method: "POST",
         body: JSON.stringify({
           match_id: matchId,
@@ -122,16 +122,10 @@ export default function AdminMatchesPage() {
           scoreHome: String(scoreHome),
           scoreAway: String(scoreAway),
           rowState: "saved",
-          message: result.email_sent ? "Guardado · correo enviado" : "Guardado",
+          message: "Guardado",
         },
       }));
-      if (result.email_sent) {
-        toast.success("Resultado guardado y correo enviado a todos");
-      } else if (result.email_error) {
-        toast.warning(`Resultado guardado, pero el correo no se envió: ${result.email_error}`);
-      } else {
-        toast.success("Resultado guardado");
-      }
+      toast.success("Guardado");
       const fresh = await apiFetch<FinishedMatchTable[]>("/admin/finished-matches-table");
       setFinishedTables(fresh);
     } catch (e) {
