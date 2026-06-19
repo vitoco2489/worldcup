@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.bet import Bet
 from app.models.match import Match
 from app.models.user import User
-from app.schemas.community import CommunityMatchRow, PredictionCounts
+from app.schemas.community import CommunityIndividualBet, CommunityMatchRow, PredictionCounts
 from app.schemas.match import MatchPublic
 from app.utils.time import get_current_time
 
@@ -21,13 +21,23 @@ def _count_predictions(db: Session, match_id) -> dict[str, int]:
     }
 
 
-def _names_by_prediction(db: Session, match_id) -> dict[str, list[str]]:
-    stmt = select(Bet.prediction, User.name).join(User, User.id == Bet.user_id).where(Bet.match_id == match_id)
-    buckets: dict[str, set[str]] = {"home": set(), "draw": set(), "away": set()}
-    for pred, name in db.execute(stmt).all():
+def _individual_bets_by_prediction(db: Session, match_id) -> dict[str, list[CommunityIndividualBet]]:
+    stmt = (
+        select(Bet.prediction, User.name, Bet.predicted_score_home, Bet.predicted_score_away)
+        .join(User, User.id == Bet.user_id)
+        .where(Bet.match_id == match_id)
+    )
+    buckets: dict[str, list[CommunityIndividualBet]] = {"home": [], "draw": [], "away": []}
+    for pred, name, score_home, score_away in db.execute(stmt).all():
         if pred in buckets:
-            buckets[pred].add(name)
-    return {k: sorted(v) for k, v in buckets.items()}
+            buckets[pred].append(
+                CommunityIndividualBet(
+                    name=name,
+                    predicted_score_home=score_home,
+                    predicted_score_away=score_away,
+                )
+            )
+    return {k: sorted(v, key=lambda item: item.name.lower()) for k, v in buckets.items()}
 
 
 def community_overview(db: Session) -> list[CommunityMatchRow]:
@@ -42,7 +52,7 @@ def community_overview(db: Session) -> list[CommunityMatchRow]:
             continue
         counts = _count_predictions(db, mid)
         reveal = now >= m.start_time
-        individuals = _names_by_prediction(db, mid) if reveal else None
+        individuals = _individual_bets_by_prediction(db, mid) if reveal else None
         rows.append(
             CommunityMatchRow(
                 match=MatchPublic.model_validate(m),

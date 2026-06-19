@@ -9,8 +9,14 @@ class PredictionCounts(BaseModel):
     away: int
 
 
+class CommunityIndividualBet(BaseModel):
+    name: str
+    predicted_score_home: int | None = None
+    predicted_score_away: int | None = None
+
+
 class CommunityMatchRow(BaseModel):
     match: MatchPublic
     counts: PredictionCounts
     reveal_individuals: bool
-    individuals: dict[str, list[str]] | None = None
+    individuals: dict[str, list[CommunityIndividualBet]] | None = None

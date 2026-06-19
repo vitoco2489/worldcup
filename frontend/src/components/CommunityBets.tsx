@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
-import type { CommunityMatchRow, PredictionCounts } from "@/lib/api";
+import type { CommunityIndividualBet, CommunityMatchRow, PredictionCounts } from "@/lib/api";
 import { formatLocal } from "@/lib/time";
 import { MatchMetaBadges } from "./MatchMetaBadges";
 
@@ -33,15 +33,30 @@ function popularKey(counts: PredictionCounts): "home" | "draw" | "away" | null {
 
 type RowProps = { row: CommunityMatchRow; variant?: "default" | "live" };
 
-function PeopleChips({ names }: { names: string[] | undefined }) {
-  if (!names || names.length === 0) {
+function predictedScoreLabel(bet: CommunityIndividualBet): string {
+  if (bet.predicted_score_home == null || bet.predicted_score_away == null) return "sin marcador";
+  return `${bet.predicted_score_home}-${bet.predicted_score_away}`;
+}
+
+function PeopleChips({ bets }: { bets: CommunityIndividualBet[] | undefined }) {
+  if (!bets || bets.length === 0) {
     return <p className="text-sm text-slate-500">—</p>;
   }
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {names.map((name) => (
-        <span key={name} className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-200 ring-1 ring-slate-700">
-          {name}
+    <div className="mt-2 flex flex-col gap-1.5">
+      {bets.map((bet) => (
+        <span
+          key={`${bet.name}-${predictedScoreLabel(bet)}`}
+          className="inline-flex items-center justify-between gap-2 rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-slate-700"
+        >
+          <span className="min-w-0 truncate">{bet.name}</span>
+          <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[11px] ${
+            bet.predicted_score_home == null || bet.predicted_score_away == null
+              ? "bg-slate-700 text-slate-400"
+              : "bg-sky-500/15 text-sky-200 ring-1 ring-sky-500/30"
+          }`}>
+            {predictedScoreLabel(bet)}
+          </span>
         </span>
       ))}
     </div>
@@ -132,25 +147,25 @@ function CommunityBetRow({ row, variant = "default" }: RowProps) {
       </ul>
       {row.reveal_individuals && row.individuals ? (
         <div className="mt-4 border-t border-slate-700 pt-3 text-xs text-slate-400">
-          <p className="mb-2 font-medium text-slate-300">{live ? "Quién apostó qué" : "Después del pitido — quién eligió qué"}</p>
+          <p className="mb-2 font-medium text-slate-300">{live ? "Quién apostó qué marcador" : "Después del pitido — quién eligió qué"}</p>
           <div className="grid gap-2 sm:grid-cols-3">
             <div className="rounded-lg bg-slate-950/45 p-3">
               <p className="flex items-center gap-1.5 font-semibold text-slate-300">
                 <img src={flagUrl(row.match.team_home_code)} alt="" className="h-4 w-5 rounded-sm object-cover" />
                 {row.match.team_home}
               </p>
-              <PeopleChips names={row.individuals.home} />
+              <PeopleChips bets={row.individuals.home} />
             </div>
             <div className="rounded-lg bg-slate-950/45 p-3">
               <p className="font-semibold text-slate-300">Empate</p>
-              <PeopleChips names={row.individuals.draw} />
+              <PeopleChips bets={row.individuals.draw} />
             </div>
             <div className="rounded-lg bg-slate-950/45 p-3">
               <p className="flex items-center gap-1.5 font-semibold text-slate-300">
                 <img src={flagUrl(row.match.team_away_code)} alt="" className="h-4 w-5 rounded-sm object-cover" />
                 {row.match.team_away}
               </p>
-              <PeopleChips names={row.individuals.away} />
+              <PeopleChips bets={row.individuals.away} />
             </div>
           </div>
         </div>

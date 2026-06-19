@@ -60,11 +60,17 @@ export type PredictionCounts = {
   away: number;
 };
 
+export type CommunityIndividualBet = {
+  name: string;
+  predicted_score_home: number | null;
+  predicted_score_away: number | null;
+};
+
 export type CommunityMatchRow = {
   match: Match;
   counts: PredictionCounts;
   reveal_individuals: boolean;
-  individuals: Record<string, string[]> | null;
+  individuals: Record<string, CommunityIndividualBet[]> | null;
 };
 
 export type LeaderboardRow = {
