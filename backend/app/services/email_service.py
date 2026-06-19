@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import smtplib
+import socket
+import ssl
 import uuid
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
@@ -16,6 +18,37 @@ from app.models.user import User
 from app.services import leaderboard_service, results_service
 
 logger = logging.getLogger(__name__)
+
+
+def _ipv4_socket(host: str, port: int, timeout: float) -> socket.socket:
+    last_err: OSError | None = None
+    for _family, _type, _proto, _canonname, sockaddr in socket.getaddrinfo(
+        host, port, socket.AF_INET, socket.SOCK_STREAM
+    ):
+        try:
+            return socket.create_connection(sockaddr, timeout=timeout)
+        except OSError as exc:
+            last_err = exc
+    raise last_err or OSError(f"Could not connect to {host}:{port} via IPv4")
+
+
+class _SMTPIPv4(smtplib.SMTP):
+    def _get_socket(self, host, port, timeout):
+        if timeout is not None and not timeout:
+            raise ValueError("Non-blocking socket (timeout=0) is not supported")
+        effective_timeout = timeout if timeout is not None else socket.getdefaulttimeout()
+        return _ipv4_socket(host, port, effective_timeout or 30)
+
+
+class _SMTP_SSL_IPv4(smtplib.SMTP_SSL):
+    def _get_socket(self, host, port, timeout):
+        if timeout is not None and not timeout:
+            raise ValueError("Non-blocking socket (timeout=0) is not supported")
+        effective_timeout = timeout if timeout is not None else socket.getdefaulttimeout()
+        sock = _ipv4_socket(host, port, effective_timeout or 30)
+        if self.context is None:
+            self.context = ssl.create_default_context()
+        return self.context.wrap_socket(sock, server_hostname=host)
 
 
 def _format_prediction(outcome: str | None, team_home: str, team_away: str) -> str:
@@ -288,13 +321,13 @@ def _send_smtp(*, recipients: list[str], subject: str, text_body: str, html_body
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     if settings.smtp_use_ssl:
-        with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=30) as server:
+        with _SMTP_SSL_IPv4(settings.smtp_host, settings.smtp_port, timeout=30) as server:
             if settings.smtp_username:
                 server.login(settings.smtp_username, settings.smtp_password)
             server.sendmail(settings.smtp_from_email, recipients, msg.as_string())
         return
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=30) as server:
+    with _SMTPIPv4(settings.smtp_host, settings.smtp_port, timeout=30) as server:
         if settings.smtp_use_tls:
             server.starttls()
         if settings.smtp_username:
