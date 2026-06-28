@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.match import Match
-from app.services import group_standings_service
 from app.services.group_standings_service import slot_to_team
+from app.services.third_place_service import MATCH_THIRD_WINNER_LETTER, resolve_third_for_match
 from app.utils.team_codes import is_placeholder_team, team_display_code
 
 _GROUP_SLOT = re.compile(r"^[12][A-L]$", re.IGNORECASE)
@@ -41,31 +41,14 @@ def _refresh_teams_resolved(m: Match) -> None:
     )
 
 
-def _resolve_third_group_slot(db: Session, slot: str) -> tuple[str, str] | None:
-    match = _THIRD_GROUP_SLOT.match(slot.strip())
-    if not match:
-        return None
-    letters = match.group(1).upper().split("/")
-    groups = group_standings_service.build_all_group_standings(db)
-    best_thirds = group_standings_service.best_third_qualifiers(groups)
-    for letter in letters:
-        group_name = f"Group {letter}"
-        table = group_standings_service.compute_group_table(db, group_name)
-        if len(table) < 3:
-            continue
-        third = table[2]
-        if (group_name, third.team) in best_thirds:
-            return third.team, team_display_code(third.team)
-    return None
-
-
-def _resolve_slot(db: Session, slot: str) -> tuple[str, str] | None:
+def _resolve_slot(db: Session, slot: str, *, match: Match | None = None) -> tuple[str, str] | None:
     slot = slot.strip()
     if _GROUP_SLOT.match(slot):
         return slot_to_team(db, slot)
-    third = _resolve_third_group_slot(db, slot)
-    if third:
-        return third
+    if _THIRD_GROUP_SLOT.match(slot):
+        if match is not None:
+            return resolve_third_for_match(db, match)
+        return None
     wm = _WINNER_SLOT.match(slot)
     if wm:
         num = int(wm.group(1))
@@ -94,7 +77,7 @@ def _resolve_slot(db: Session, slot: str) -> tuple[str, str] | None:
 
 def refresh_bracket(db: Session) -> int:
     """Fill knockout placeholders (1A, 2B, W73, L101, …) from group tables / results."""
-    updated = 0
+    updated = _fix_wrong_third_assignments(db)
     pending = list(
         db.scalars(
             select(Match).where(
@@ -109,7 +92,7 @@ def refresh_bracket(db: Session) -> int:
         for side, label in (("home", m.team_home), ("away", m.team_away)):
             if not is_placeholder_team(label):
                 continue
-            resolved = _resolve_slot(db, label)
+            resolved = _resolve_slot(db, label, match=m)
             if not resolved:
                 continue
             name, code = resolved
@@ -118,5 +101,28 @@ def refresh_bracket(db: Session) -> int:
         if changed:
             _refresh_teams_resolved(m)
             updated += 1
+    db.flush()
+    return updated
+
+
+def _fix_wrong_third_assignments(db: Session) -> int:
+    updated = 0
+    for m in db.scalars(
+        select(Match).where(
+            Match.match_number.in_(MATCH_THIRD_WINNER_LETTER.keys()),
+            Match.score_home.is_(None),
+            Match.score_away.is_(None),
+        )
+    ).all():
+        expected = resolve_third_for_match(db, m)
+        if not expected:
+            continue
+        name, code = expected
+        if m.team_away == name and m.team_away_code == code:
+            continue
+        m.team_away = name
+        m.team_away_code = code
+        _refresh_teams_resolved(m)
+        updated += 1
     db.flush()
     return updated

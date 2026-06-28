@@ -328,7 +328,9 @@ export default function AdminPage() {
     try {
       const r = await apiFetch<RepairScheduleResponse>("/admin/repair-schedule", { method: "POST" });
       toast.success(
-        `Cruces corregidos: ${r.updated} partido(s) actualizado(s), ${r.bracket_slots_updated} cupo(s) resueltos.`,
+        `Cruces corregidos: ${r.updated} partido(s) actualizado(s), ${r.bracket_slots_updated} cupo(s) resueltos` +
+          (r.orphans_removed ? `, ${r.orphans_removed} duplicado(s) eliminado(s)` : "") +
+          ".",
       );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo reparar el calendario");

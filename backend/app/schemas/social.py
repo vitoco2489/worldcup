@@ -26,6 +26,7 @@ class BracketRound(BaseModel):
 
 class BracketView(BaseModel):
     rounds: list[BracketRound]
+    active_round: str | None = None
 
 
 class WallEntry(BaseModel):

@@ -37,6 +37,7 @@ class ScheduleLoadResponse(BaseModel):
 class RepairScheduleResponse(BaseModel):
     updated: int
     bracket_slots_updated: int
+    orphans_removed: int = 0
     message: str
 
 

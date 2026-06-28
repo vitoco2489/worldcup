@@ -7,6 +7,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.bet import Bet
 from app.models.match import Match
 from app.utils.schedule_time import parse_schedule_datetime
 from app.utils.team_codes import is_placeholder_team, team_display_code
@@ -173,3 +174,36 @@ def repair_schedule_pairings(db: Session, payload: dict) -> dict[str, int]:
 
     db.flush()
     return {"updated": updated}
+
+
+def remove_orphan_knockout_matches(db: Session) -> int:
+    """Delete unnumbered knockout duplicates (no bets) when official numbered bracket exists."""
+    numbered_knockout = db.scalars(
+        select(Match.match_number).where(
+            Match.group_name.is_(None),
+            Match.match_number.isnot(None),
+        )
+    ).all()
+    if len(numbered_knockout) < 32:
+        return 0
+
+    orphans = list(
+        db.scalars(
+            select(Match).where(
+                Match.group_name.is_(None),
+                Match.match_number.is_(None),
+                Match.score_home.is_(None),
+                Match.score_away.is_(None),
+            )
+        ).all()
+    )
+    removed = 0
+    for m in orphans:
+        has_bets = db.scalar(select(Bet.id).where(Bet.match_id == m.id).limit(1)) is not None
+        if has_bets:
+            continue
+        db.delete(m)
+        removed += 1
+    if removed:
+        db.flush()
+    return removed

@@ -37,6 +37,7 @@ export type ScheduleLoadResponse = {
 export type RepairScheduleResponse = {
   updated: number;
   bracket_slots_updated: number;
+  orphans_removed: number;
   message: string;
 };
 
@@ -165,6 +166,7 @@ export type BracketRound = {
 
 export type BracketView = {
   rounds: BracketRound[];
+  active_round: string | null;
 };
 
 export type QualificationStatus = "direct" | "best_third";

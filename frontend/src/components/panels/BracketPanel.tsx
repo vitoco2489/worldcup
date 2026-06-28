@@ -33,7 +33,14 @@ export function BracketPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-400">
-        Picks del grupo en cada cruce — ideal para compartir en WhatsApp.
+        {data.active_round ? (
+          <>
+            Ronda actual: <span className="text-slate-200">{data.active_round}</span>. Al guardar todos
+            los resultados de esta ronda, aparecerá la siguiente llave con los ganadores.
+          </>
+        ) : (
+          <>Picks del grupo en cada cruce — ideal para compartir en WhatsApp.</>
+        )}
       </p>
 
       {data.rounds.length === 0 ? (

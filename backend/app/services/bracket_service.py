@@ -31,6 +31,21 @@ def _round_sort_key(round_name: str | None) -> tuple[int, str]:
     return (50, round_name)
 
 
+def _match_row_finished(row: BracketMatchRow) -> bool:
+    m = row.match
+    return m.score_home is not None and m.score_away is not None
+
+
+def _active_round_label(by_round: dict[str, list[BracketMatchRow]]) -> str | None:
+    """First knockout round (in bracket order) with at least one match still open."""
+    if not by_round:
+        return None
+    for label in sorted(by_round.keys(), key=_round_sort_key):
+        if any(not _match_row_finished(row) for row in by_round[label]):
+            return label
+    return max(by_round.keys(), key=_round_sort_key)
+
+
 def bracket_view(db: Session) -> BracketView:
     now = get_current_time(db=db)
     rows = list(
@@ -57,8 +72,13 @@ def bracket_view(db: Session) -> BracketView:
             )
         )
 
-    rounds = [
+    rounds_all = [
         BracketRound(round=label, matches=by_round[label])
         for label in sorted(by_round.keys(), key=_round_sort_key)
     ]
-    return BracketView(rounds=rounds)
+    active_round = _active_round_label(by_round)
+    if active_round:
+        rounds = [r for r in rounds_all if r.round == active_round]
+    else:
+        rounds = rounds_all
+    return BracketView(rounds=rounds, active_round=active_round)

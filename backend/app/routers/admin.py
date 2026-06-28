@@ -181,11 +181,13 @@ def repair_schedule(
     except FileNotFoundError as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
     out = schedule_import_service.repair_schedule_pairings(db, payload)
+    orphans_removed = schedule_import_service.remove_orphan_knockout_matches(db)
     bracket_updated = bracket_resolver_service.refresh_bracket(db)
     db.commit()
     return RepairScheduleResponse(
         updated=out["updated"],
         bracket_slots_updated=bracket_updated,
+        orphans_removed=orphans_removed,
         message="Knockout pairings synced from official schedule",
     )
 
