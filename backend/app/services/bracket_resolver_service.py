@@ -6,10 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.match import Match
+from app.services import group_standings_service
 from app.services.group_standings_service import slot_to_team
 from app.utils.team_codes import is_placeholder_team, team_display_code
 
 _GROUP_SLOT = re.compile(r"^[12][A-L]$", re.IGNORECASE)
+_THIRD_GROUP_SLOT = re.compile(r"^3([A-L](?:/[A-L])*)$", re.IGNORECASE)
 _WINNER_SLOT = re.compile(r"^W(\d+)$", re.IGNORECASE)
 _LOSER_SLOT = re.compile(r"^L(\d+)$", re.IGNORECASE)
 
@@ -39,10 +41,31 @@ def _refresh_teams_resolved(m: Match) -> None:
     )
 
 
+def _resolve_third_group_slot(db: Session, slot: str) -> tuple[str, str] | None:
+    match = _THIRD_GROUP_SLOT.match(slot.strip())
+    if not match:
+        return None
+    letters = match.group(1).upper().split("/")
+    groups = group_standings_service.build_all_group_standings(db)
+    best_thirds = group_standings_service.best_third_qualifiers(groups)
+    for letter in letters:
+        group_name = f"Group {letter}"
+        table = group_standings_service.compute_group_table(db, group_name)
+        if len(table) < 3:
+            continue
+        third = table[2]
+        if (group_name, third.team) in best_thirds:
+            return third.team, team_display_code(third.team)
+    return None
+
+
 def _resolve_slot(db: Session, slot: str) -> tuple[str, str] | None:
     slot = slot.strip()
     if _GROUP_SLOT.match(slot):
         return slot_to_team(db, slot)
+    third = _resolve_third_group_slot(db, slot)
+    if third:
+        return third
     wm = _WINNER_SLOT.match(slot)
     if wm:
         num = int(wm.group(1))

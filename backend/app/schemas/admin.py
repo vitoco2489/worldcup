@@ -23,7 +23,6 @@ class MatchLoadResponse(BaseModel):
 class ScheduleLoadRequest(BaseModel):
     name: str = "World Cup 2026"
     matches: list[dict]
-    replace_existing: bool = False
 
 
 class ScheduleLoadResponse(BaseModel):
@@ -33,6 +32,12 @@ class ScheduleLoadResponse(BaseModel):
     bracket_slots_updated: int = 0
     error_count: int
     errors: list[str]
+
+
+class RepairScheduleResponse(BaseModel):
+    updated: int
+    bracket_slots_updated: int
+    message: str
 
 
 class CsvRowError(BaseModel):

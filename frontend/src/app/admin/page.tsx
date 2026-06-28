@@ -14,6 +14,7 @@ import type {
   ResetBetsResponse,
   ResetMatchesResponse,
   ResetSimulationResponse,
+  RepairScheduleResponse,
   ScheduleLoadResponse,
   ServerTimeResponse,
   UserMe,
@@ -42,6 +43,7 @@ type ActionKey =
   | "reset_bets"
   | "reset_matches"
   | "load_schedule"
+  | "repair_schedule"
   | "add_allowed"
   | "remove_allowed"
   | "manual_bet";
@@ -75,7 +77,6 @@ export default function AdminPage() {
     '[{"team_home":"Chile","team_away":"Argentina","team_home_code":"cl","team_away_code":"ar","start_time":"2026-06-10T20:00:00Z"}]',
   );
   const [scheduleJson, setScheduleJson] = useState("");
-  const [scheduleReplace, setScheduleReplace] = useState(true);
   const [simTimeIso, setSimTimeIso] = useState("2026-06-10T19:57:00Z");
   const [resetConfirmText, setResetConfirmText] = useState("");
   const [deleteBetsConfirmText, setDeleteBetsConfirmText] = useState("");
@@ -293,7 +294,7 @@ export default function AdminPage() {
       toast.error('El JSON debe ser { "name": "...", "matches": [ ... ] }');
       return;
     }
-    if (!window.confirm(scheduleReplace ? "¿Reemplazar TODOS los partidos y apuestas con este calendario?" : "¿Importar solo partidos nuevos?")) {
+    if (!window.confirm("¿Importar partidos nuevos del calendario? Los existentes no se borran.")) {
       return;
     }
     setLoadingAction("load_schedule");
@@ -304,13 +305,33 @@ export default function AdminPage() {
         body: JSON.stringify({
           name: body.name ?? "World Cup 2026",
           matches: body.matches,
-          replace_existing: scheduleReplace,
         }),
       });
       const errNote = r.error_count ? ` (${r.error_count} filas con error)` : "";
       toast.success(`Calendario: ${r.created} creados, ${r.skipped} omitidos, ${r.bracket_slots_updated} cupos actualizados.${errNote}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo importar el calendario");
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
+  async function repairSchedule() {
+    if (
+      !window.confirm(
+        "¿Corregir cruces de eliminatoria (16avos, 32avos, etc.) con el calendario oficial FIFA? Solo actualiza partidos sin marcador guardado.",
+      )
+    ) {
+      return;
+    }
+    setLoadingAction("repair_schedule");
+    try {
+      const r = await apiFetch<RepairScheduleResponse>("/admin/repair-schedule", { method: "POST" });
+      toast.success(
+        `Cruces corregidos: ${r.updated} partido(s) actualizado(s), ${r.bracket_slots_updated} cupo(s) resueltos.`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo reparar el calendario");
     } finally {
       setLoadingAction(null);
     }
@@ -826,14 +847,20 @@ export default function AdminPage() {
             Pega el JSON completo ({`{ "name", "matches": [ team1, team2, date, time, group?, num? ] }`}). Los
             placeholders de eliminatoria (1A, W73…) se completan solos cuando terminen los grupos y partidos previos.
           </p>
-          <label className="flex items-center gap-2 text-xs text-slate-300">
-            <input
-              type="checkbox"
-              checked={scheduleReplace}
-              onChange={(e) => setScheduleReplace(e.target.checked)}
-            />
-            Reemplazar partidos y apuestas existentes primero
-          </label>
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-slate-300">
+            <p className="font-semibold text-amber-200">¿Cruces de 16avos mal?</p>
+            <p className="mt-1 text-slate-400">
+              Usa el calendario oficial (openfootball/FIFA): p. ej. partido 89 = W74 vs W77, 90 = W73 vs W75, etc.
+            </p>
+            <button
+              type="button"
+              disabled={isLoading("repair_schedule")}
+              onClick={() => void repairSchedule()}
+              className="mt-2 rounded-lg border border-amber-500/50 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/10 disabled:opacity-60"
+            >
+              {isLoading("repair_schedule") ? "Reparando…" : "Reparar cruces de eliminatoria"}
+            </button>
+          </div>
           <textarea
             className="h-40 w-full rounded-lg border border-slate-600 bg-slate-900 p-2 font-mono text-xs"
             placeholder='{"name":"World Cup 2026","matches":[...]}'

@@ -29,6 +29,7 @@ from app.schemas.admin import (
     ScheduleLoadRequest,
     ScheduleLoadResponse,
     PoolUpdateRequest,
+    RepairScheduleResponse,
     ResetAllDataRequest,
     ResetAllDataResponse,
     ResetBetsRequest,
@@ -157,7 +158,6 @@ def load_schedule(
     out = schedule_import_service.load_schedule_payload(
         db,
         body.model_dump(),
-        replace_existing=body.replace_existing,
     )
     bracket_updated = bracket_resolver_service.refresh_bracket(db)
     db.commit()
@@ -168,6 +168,25 @@ def load_schedule(
         bracket_slots_updated=bracket_updated,
         error_count=out["error_count"],
         errors=out["errors"][:50],
+    )
+
+
+@router.post("/repair-schedule", response_model=RepairScheduleResponse)
+def repair_schedule(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    try:
+        payload = schedule_import_service.load_bundled_schedule_payload()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    out = schedule_import_service.repair_schedule_pairings(db, payload)
+    bracket_updated = bracket_resolver_service.refresh_bracket(db)
+    db.commit()
+    return RepairScheduleResponse(
+        updated=out["updated"],
+        bracket_slots_updated=bracket_updated,
+        message="Knockout pairings synced from official schedule",
     )
 
 

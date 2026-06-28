@@ -34,6 +34,12 @@ export type ScheduleLoadResponse = {
   errors: string[];
 };
 
+export type RepairScheduleResponse = {
+  updated: number;
+  bracket_slots_updated: number;
+  message: string;
+};
+
 export type Bet = {
   id: string;
   user_id: string;

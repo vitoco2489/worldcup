@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import json
 import uuid
+from pathlib import Path
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.bet import Bet
 from app.models.match import Match
 from app.utils.schedule_time import parse_schedule_datetime
 from app.utils.team_codes import is_placeholder_team, team_display_code
+
+BUNDLED_SCHEDULE_PATH = Path(__file__).resolve().parents[2] / "data" / "world_cup_2026_schedule.json"
 
 
 def _normalize_group_name(raw: str | None) -> str | None:
@@ -56,18 +59,11 @@ def _parse_match_row(raw: dict) -> dict:
 def load_schedule_payload(
     db: Session,
     payload: dict,
-    *,
-    replace_existing: bool = False,
 ) -> dict[str, int]:
     name = (payload.get("name") or "schedule").strip()
     rows = payload.get("matches")
     if not isinstance(rows, list):
         raise ValueError("Payload must include 'matches' array")
-
-    if replace_existing:
-        db.execute(delete(Bet))
-        db.execute(delete(Match))
-        db.flush()
 
     created = 0
     skipped = 0
@@ -120,3 +116,60 @@ def load_schedule_payload(
         "errors": errors,
         "error_count": len(errors),
     }
+
+
+def load_bundled_schedule_payload() -> dict:
+    if not BUNDLED_SCHEDULE_PATH.is_file():
+        raise FileNotFoundError(f"Bundled schedule not found: {BUNDLED_SCHEDULE_PATH}")
+    return json.loads(BUNDLED_SCHEDULE_PATH.read_text(encoding="utf-8"))
+
+
+def repair_schedule_pairings(db: Session, payload: dict) -> dict[str, int]:
+    """Sync team placeholders and metadata from canonical schedule by match_number."""
+    rows = payload.get("matches")
+    if not isinstance(rows, list):
+        raise ValueError("Payload must include 'matches' array")
+
+    updated = 0
+    for i, raw in enumerate(rows, start=1):
+        if not isinstance(raw, dict):
+            continue
+        try:
+            parsed = _parse_match_row(raw)
+        except Exception:
+            continue
+        match_number = parsed["match_number"]
+        if match_number is None:
+            continue
+        existing = db.scalar(select(Match).where(Match.match_number == match_number))
+        if not existing or existing.score_home is not None or existing.score_away is not None:
+            continue
+
+        changed = False
+        for field in (
+            "team_home",
+            "team_away",
+            "team_home_code",
+            "team_away_code",
+            "start_time",
+            "round",
+            "group_name",
+            "ground",
+        ):
+            new_value = parsed[field]
+            if getattr(existing, field) != new_value:
+                setattr(existing, field, new_value)
+                changed = True
+
+        teams_resolved = not (
+            is_placeholder_team(existing.team_home) or is_placeholder_team(existing.team_away)
+        )
+        if existing.teams_resolved != teams_resolved:
+            existing.teams_resolved = teams_resolved
+            changed = True
+
+        if changed:
+            updated += 1
+
+    db.flush()
+    return {"updated": updated}
