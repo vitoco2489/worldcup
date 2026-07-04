@@ -11,6 +11,7 @@ from app.models.match import Match
 from app.repositories import bet_repo, match_repo
 from app.schemas.match import MatchPublic
 from app.services import bet_service, bracket_resolver_service
+from app.services.match_outcome import knockout_needs_penalties, validate_penalty_input
 from app.utils.admin import is_admin_email
 from app.utils.time import get_current_time, lock_time_for_match_start
 
@@ -36,6 +37,8 @@ def to_public(match: Match, *, now) -> MatchPublic:
         start_time=match.start_time,
         score_home=match.score_home,
         score_away=match.score_away,
+        penalty_score_home=match.penalty_score_home,
+        penalty_score_away=match.penalty_score_away,
         status=derived_match_status(match, now=now),
         round=match.round,
         group_name=match.group_name,
@@ -79,14 +82,25 @@ def set_result_and_resolve(
     match_id: uuid.UUID,
     score_home: int,
     score_away: int,
+    penalty_score_home: int | None = None,
+    penalty_score_away: int | None = None,
 ) -> MatchPublic:
     if score_home < 0 or score_away < 0:
         raise HTTPException(status_code=400, detail="Scores must be non-negative integers")
     m = match_repo.get_by_id(db, match_id)
     if not m:
         raise HTTPException(status_code=404, detail="Match not found")
+    pen_home, pen_away = validate_penalty_input(
+        m,
+        score_home=score_home,
+        score_away=score_away,
+        penalty_score_home=penalty_score_home,
+        penalty_score_away=penalty_score_away,
+    )
     m.score_home = score_home
     m.score_away = score_away
+    m.penalty_score_home = pen_home
+    m.penalty_score_away = pen_away
     m.status = "finished"
     for bet in db.scalars(select(Bet).where(Bet.match_id == match_id)).all():
         bet_service.resolve_bet(bet, m)
@@ -103,6 +117,8 @@ def admin_update_result(
     score_away: int,
     status: str,
     admin_email: str,
+    penalty_score_home: int | None = None,
+    penalty_score_away: int | None = None,
 ) -> MatchPublic:
     if not is_admin_email(admin_email):
         raise HTTPException(status_code=403, detail="Not allowed to update matches")
@@ -111,4 +127,6 @@ def admin_update_result(
         match_id=match_id,
         score_home=score_home,
         score_away=score_away,
+        penalty_score_home=penalty_score_home,
+        penalty_score_away=penalty_score_away,
     )

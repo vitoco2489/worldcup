@@ -17,6 +17,8 @@ export type Match = {
   start_time: string;
   score_home: number | null;
   score_away: number | null;
+  penalty_score_home?: number | null;
+  penalty_score_away?: number | null;
   status: string;
   round?: string | null;
   group_name?: string | null;
@@ -294,6 +296,8 @@ export type FinishedMatchTable = {
   start_time: string;
   score_home: number;
   score_away: number;
+  penalty_score_home?: number | null;
+  penalty_score_away?: number | null;
   rows: FinishedMatchBetRow[];
 };
 

@@ -151,6 +151,8 @@ class MatchResultUpdateItem(BaseModel):
     match_id: UUID
     score_home: int = Field(ge=0)
     score_away: int = Field(ge=0)
+    penalty_score_home: int | None = Field(default=None, ge=0)
+    penalty_score_away: int | None = Field(default=None, ge=0)
     status: str = "finished"
 
 
@@ -158,6 +160,8 @@ class MatchResultUpdateRequest(BaseModel):
     match_id: UUID
     score_home: int = Field(ge=0)
     score_away: int = Field(ge=0)
+    penalty_score_home: int | None = Field(default=None, ge=0)
+    penalty_score_away: int | None = Field(default=None, ge=0)
     status: str = "finished"
 
 
@@ -192,6 +196,8 @@ class FinishedMatchTable(BaseModel):
     start_time: datetime
     score_home: int
     score_away: int
+    penalty_score_home: int | None = None
+    penalty_score_away: int | None = None
     rows: list[FinishedMatchBetRow]
 
 

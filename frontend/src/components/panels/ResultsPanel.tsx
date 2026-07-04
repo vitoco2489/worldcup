@@ -6,6 +6,7 @@ import type { FinishedMatchTable } from "@/lib/api";
 import { apiFetch } from "@/lib/api";
 import { formatLocal, localDateKey } from "@/lib/time";
 import { formatPrediction } from "@/lib/i18n";
+import { formatMatchScore } from "@/lib/matchScore";
 
 type FlatRow = {
   match_id: string;
@@ -43,11 +44,11 @@ export function ResultsPanel() {
     for (const m of rows) {
       for (const r of m.rows) {
         const finalScore =
-          m.score_home != null && m.score_away != null ? `${m.score_home} - ${m.score_away}` : "—";
+          m.score_home != null && m.score_away != null ? formatMatchScore(m) : "—";
         out.push({
           match_id: m.match_id,
           match_label: `${m.team_home} vs ${m.team_away}`,
-          match_key: `${m.team_home} vs ${m.team_away} · ${m.score_home}-${m.score_away}`,
+          match_key: `${m.team_home} vs ${m.team_away} · ${formatMatchScore(m)}`,
           team_home_code: m.team_home_code,
           team_away_code: m.team_away_code,
           start_time: m.start_time,

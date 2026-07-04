@@ -5,6 +5,7 @@ import type { BracketView } from "@/lib/api";
 import { apiFetch } from "@/lib/api";
 import { formatLocal } from "@/lib/time";
 import { formatPrediction } from "@/lib/i18n";
+import { formatMatchScore } from "@/lib/matchScore";
 
 const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
 
@@ -78,9 +79,7 @@ export function BracketPanel() {
                           <span className="truncate font-semibold">{m.team_home}</span>
                         </div>
                         {finished ? (
-                          <span className="font-bold tabular-nums">
-                            {m.score_home}–{m.score_away}
-                          </span>
+                          <span className="font-bold tabular-nums">{formatMatchScore(m)}</span>
                         ) : (
                           <span className="text-sm text-slate-500">vs</span>
                         )}

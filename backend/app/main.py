@@ -32,6 +32,8 @@ def _bootstrap_db() -> None:
             conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS ground VARCHAR(128)"))
             conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS match_number INTEGER"))
             conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS teams_resolved BOOLEAN DEFAULT TRUE"))
+            conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS penalty_score_home INTEGER"))
+            conn.execute(text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS penalty_score_away INTEGER"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS entry_paid BOOLEAN NOT NULL DEFAULT FALSE"))
             db = Session(bind=conn, close_resets_only=True)
             try:

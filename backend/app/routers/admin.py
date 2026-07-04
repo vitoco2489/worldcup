@@ -214,6 +214,8 @@ def update_match_result(
         match_id=body.match_id,
         score_home=body.score_home,
         score_away=body.score_away,
+        penalty_score_home=body.penalty_score_home,
+        penalty_score_away=body.penalty_score_away,
     )
     db.commit()
     return MatchResultUpdateResponse(match_id=body.match_id, message="Match result saved")
@@ -234,6 +236,8 @@ def update_match_results_bulk(
             match_id=u.match_id,
             score_home=u.score_home,
             score_away=u.score_away,
+            penalty_score_home=u.penalty_score_home,
+            penalty_score_away=u.penalty_score_away,
         )
         updated += 1
     db.commit()

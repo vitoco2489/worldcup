@@ -21,6 +21,8 @@ class Match(Base):
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     score_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
     score_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    penalty_score_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    penalty_score_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="scheduled", index=True)
     round: Mapped[str | None] = mapped_column(String(64), nullable=True)
     group_name: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)

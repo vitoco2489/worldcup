@@ -13,6 +13,8 @@ class MatchPublic(BaseModel):
     start_time: datetime
     score_home: int | None
     score_away: int | None
+    penalty_score_home: int | None = None
+    penalty_score_away: int | None = None
     status: str
     round: str | None = None
     group_name: str | None = None

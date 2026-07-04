@@ -10,6 +10,7 @@ from app.models.bet import Bet
 from app.models.match import Match
 from app.repositories import bet_repo, match_repo
 from app.schemas.bet import BetPublic
+from app.services.match_outcome import match_outcome
 from app.utils.time import get_current_time, is_bet_editable
 
 CORRECT_POINTS = 3
@@ -17,13 +18,7 @@ EXACT_SCORE_BONUS = 2
 
 
 def match_result_prediction(match: Match) -> str | None:
-    if match.score_home is None or match.score_away is None:
-        return None
-    if match.score_home > match.score_away:
-        return "home"
-    if match.score_home < match.score_away:
-        return "away"
-    return "draw"
+    return match_outcome(match)
 
 
 def is_exact_score_hit(bet: Bet, match: Match) -> bool:
@@ -41,9 +36,7 @@ def _exact_score_match(bet: Bet, match: Match) -> bool:
 
 
 def resolve_bet(bet: Bet, match: Match, *, now: datetime | None = None) -> bool:
-    """Idempotent: if already resolved, no-op. Returns True if resolution was applied or already done."""
-    if bet.resolved:
-        return True
+    """Recalculate points when a match has a final score (idempotent save)."""
     if match.status != "finished":
         return False
     outcome = match_result_prediction(match)

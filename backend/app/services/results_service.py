@@ -65,6 +65,8 @@ def list_finished_match_tables(db: Session) -> list[dict]:
                 "start_time": m.start_time,
                 "score_home": int(m.score_home),
                 "score_away": int(m.score_away),
+                "penalty_score_home": m.penalty_score_home,
+                "penalty_score_away": m.penalty_score_away,
                 "rows": rows,
             }
         )

@@ -71,6 +71,8 @@ def reset_all_data(db: Session) -> dict[str, int]:
     for m in matches:
         m.score_home = None
         m.score_away = None
+        m.penalty_score_home = None
+        m.penalty_score_away = None
         m.status = "scheduled"
     matches_reset = len(matches)
 

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.match import Match
 from app.services.group_standings_service import slot_to_team
+from app.services.match_outcome import match_winner_team
 from app.services.third_place_service import MATCH_THIRD_WINNER_LETTER, resolve_third_for_match
 from app.utils.team_codes import is_placeholder_team, team_display_code
 
@@ -17,13 +18,7 @@ _LOSER_SLOT = re.compile(r"^L(\d+)$", re.IGNORECASE)
 
 
 def _match_winner(m: Match) -> str | None:
-    if m.score_home is None or m.score_away is None:
-        return None
-    if m.score_home > m.score_away:
-        return m.team_home
-    if m.score_away > m.score_home:
-        return m.team_away
-    return None
+    return match_winner_team(m)
 
 
 def _apply_team(m: Match, side: str, name: str, code: str) -> None:

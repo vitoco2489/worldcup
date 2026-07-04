@@ -16,6 +16,7 @@ import {
   type MatchBettingPhase,
 } from "@/lib/time";
 import { betPickLabel, betResultBadge } from "@/lib/betLabels";
+import { formatMatchScore } from "@/lib/matchScore";
 import { FootballKick } from "./FootballKick";
 import { BetChoiceBurst } from "./BetChoiceBurst";
 import { MatchMetaBadges } from "./MatchMetaBadges";
@@ -307,9 +308,7 @@ export function MatchCard({ match, existingBet, onBetSaved, effectiveNowMs }: Pr
               <span className="truncate font-semibold">{match.team_home}</span>
             </div>
             {showScores ? (
-              <span className="text-lg font-bold tabular-nums">
-                {match.score_home} – {match.score_away}
-              </span>
+              <span className="text-lg font-bold tabular-nums">{formatMatchScore(match)}</span>
             ) : (
               <span className="text-slate-400 text-sm">vs</span>
             )}
