@@ -15,6 +15,7 @@ import type {
   ResetMatchesResponse,
   ResetSimulationResponse,
   RepairScheduleResponse,
+  ReResolveBetsResponse,
   ScheduleLoadResponse,
   ServerTimeResponse,
   UserMe,
@@ -44,6 +45,7 @@ type ActionKey =
   | "reset_matches"
   | "load_schedule"
   | "repair_schedule"
+  | "re_resolve_bets"
   | "add_allowed"
   | "remove_allowed"
   | "manual_bet";
@@ -334,6 +336,25 @@ export default function AdminPage() {
       );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo reparar el calendario");
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
+  async function reResolveBets() {
+    if (
+      !window.confirm(
+        "¿Recalcular todos los puntos usando solo el marcador a los 120 minutos? Los penales no cambian home/empate/visitante.",
+      )
+    ) {
+      return;
+    }
+    setLoadingAction("re_resolve_bets");
+    try {
+      const r = await apiFetch<ReResolveBetsResponse>("/admin/re-resolve-bets", { method: "POST" });
+      toast.success(`Puntos recalculados: ${r.updated} apuesta(s) actualizada(s).`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudieron recalcular los puntos");
     } finally {
       setLoadingAction(null);
     }
@@ -835,12 +856,25 @@ export default function AdminPage() {
           </ul>
         </section>
 
-        <section className="rounded-xl border border-primary/30 bg-card/50 p-4">
+        <section className="rounded-xl border border-primary/30 bg-card/50 p-4 space-y-3">
           <p className="text-base font-semibold text-primary">Gestor de partidos</p>
-          <p className="mt-1 text-sm text-slate-400">Administra marcadores y estados en la página dedicada.</p>
-          <Link href="/admin/matches" className="mt-3 inline-flex rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-pitch">
-            Abrir gestor de partidos
-          </Link>
+          <p className="text-sm text-slate-400">Administra marcadores, penales y estados en la página dedicada.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/matches" className="inline-flex rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-pitch">
+              Abrir gestor de partidos
+            </Link>
+            <button
+              type="button"
+              disabled={isLoading("re_resolve_bets")}
+              onClick={() => void reResolveBets()}
+              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-60"
+            >
+              {isLoading("re_resolve_bets") ? "Recalculando…" : "Recalcular puntos (120')"}
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">
+            Usa recalcular si hubo empates a penales: los puntos usan el marcador a los 120 minutos, no la tanda.
+          </p>
         </section>
 
         <section className="rounded-xl border border-primary/30 bg-card p-4 space-y-3">

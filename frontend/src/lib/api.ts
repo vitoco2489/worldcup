@@ -43,6 +43,11 @@ export type RepairScheduleResponse = {
   message: string;
 };
 
+export type ReResolveBetsResponse = {
+  updated: number;
+  message: string;
+};
+
 export type Bet = {
   id: string;
   user_id: string;
@@ -298,6 +303,9 @@ export type FinishedMatchTable = {
   score_away: number;
   penalty_score_home?: number | null;
   penalty_score_away?: number | null;
+  match_number?: number | null;
+  round?: string | null;
+  group_name?: string | null;
   rows: FinishedMatchBetRow[];
 };
 

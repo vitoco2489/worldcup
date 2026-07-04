@@ -7,6 +7,11 @@ import { apiFetch } from "@/lib/api";
 import { formatLocal, localDateKey } from "@/lib/time";
 import { formatPrediction } from "@/lib/i18n";
 import { formatMatchScore } from "@/lib/matchScore";
+import {
+  matchPassesPhaseFilter,
+  RESULTS_PHASE_OPTIONS,
+  type ResultsPhaseFilter,
+} from "@/lib/matchPhase";
 
 type FlatRow = {
   match_id: string;
@@ -30,6 +35,7 @@ export function ResultsPanel() {
   const [userFilter, setUserFilter] = useState("all");
   const [matchFilter, setMatchFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
+  const [phaseFilter, setPhaseFilter] = useState<ResultsPhaseFilter>("octavos");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,9 +45,14 @@ export function ResultsPanel() {
       .finally(() => setLoading(false));
   }, []);
 
+  const phaseFilteredRows = useMemo(
+    () => rows.filter((m) => matchPassesPhaseFilter(m, phaseFilter)),
+    [rows, phaseFilter],
+  );
+
   const flatRows = useMemo<FlatRow[]>(() => {
     const out: FlatRow[] = [];
-    for (const m of rows) {
+    for (const m of phaseFilteredRows) {
       for (const r of m.rows) {
         const finalScore =
           m.score_home != null && m.score_away != null ? formatMatchScore(m) : "—";
@@ -62,7 +73,7 @@ export function ResultsPanel() {
       }
     }
     return out;
-  }, [rows]);
+  }, [phaseFilteredRows]);
 
   const uniqueUsers = useMemo(
     () => Array.from(new Set(flatRows.map((r) => r.user_name))).sort((a, b) => a.localeCompare(b)),
@@ -89,64 +100,56 @@ export function ResultsPanel() {
     return <p className="text-sm text-slate-400">Aún no hay partidos finalizados.</p>;
   }
 
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-slate-400">Tabla de resultados por partido y jugador.</p>
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-700 bg-card p-3">
-        <label className="flex flex-col gap-1 text-xs text-slate-400">
-          Usuario
-          <select
-            value={userFilter}
-            onChange={(e) => setUserFilter(e.target.value)}
-            className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
-          >
-            <option value="all">Todos</option>
-            {uniqueUsers.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-400">
-          Partido
-          <select
-            value={matchFilter}
-            onChange={(e) => setMatchFilter(e.target.value)}
-            className="max-w-xs rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
-          >
-            <option value="all">Todos</option>
-            {uniqueMatches.map((m) => {
-              const [id, label] = m.split("::");
-              return (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              );
-            })}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-400">
-          Fecha
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() => {
+  if (phaseFilteredRows.length === 0) {
+    return (
+      <div className="space-y-3">
+        <PhaseFilterBar
+          phaseFilter={phaseFilter}
+          onPhaseChange={setPhaseFilter}
+          userFilter={userFilter}
+          onUserChange={setUserFilter}
+          matchFilter={matchFilter}
+          onMatchChange={setMatchFilter}
+          dateFilter={dateFilter}
+          onDateChange={setDateFilter}
+          uniqueUsers={[]}
+          uniqueMatches={[]}
+          onClear={() => {
             setUserFilter("all");
             setMatchFilter("all");
             setDateFilter("");
           }}
-          className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-slate-200"
-        >
-          Limpiar
-        </button>
+        />
+        <p className="text-sm text-slate-400">No hay partidos finalizados en esta fase.</p>
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-400">
+        Tabla de resultados por partido y jugador. Por defecto se muestran octavos en adelante.
+      </p>
+      <PhaseFilterBar
+        phaseFilter={phaseFilter}
+        onPhaseChange={(phase) => {
+          setPhaseFilter(phase);
+          setMatchFilter("all");
+        }}
+        userFilter={userFilter}
+        onUserChange={setUserFilter}
+        matchFilter={matchFilter}
+        onMatchChange={setMatchFilter}
+        dateFilter={dateFilter}
+        onDateChange={setDateFilter}
+        uniqueUsers={uniqueUsers}
+        uniqueMatches={uniqueMatches}
+        onClear={() => {
+          setUserFilter("all");
+          setMatchFilter("all");
+          setDateFilter("");
+        }}
+      />
 
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-700 bg-card">
         <table className="w-full min-w-[980px] text-left text-xs">
@@ -193,6 +196,100 @@ export function ResultsPanel() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function PhaseFilterBar({
+  phaseFilter,
+  onPhaseChange,
+  userFilter,
+  onUserChange,
+  matchFilter,
+  onMatchChange,
+  dateFilter,
+  onDateChange,
+  uniqueUsers,
+  uniqueMatches,
+  onClear,
+}: {
+  phaseFilter: ResultsPhaseFilter;
+  onPhaseChange: (phase: ResultsPhaseFilter) => void;
+  userFilter: string;
+  onUserChange: (value: string) => void;
+  matchFilter: string;
+  onMatchChange: (value: string) => void;
+  dateFilter: string;
+  onDateChange: (value: string) => void;
+  uniqueUsers: string[];
+  uniqueMatches: string[];
+  onClear: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-700 bg-card p-3">
+      <label className="flex flex-col gap-1 text-xs text-slate-400">
+        Fase
+        <select
+          value={phaseFilter}
+          onChange={(e) => onPhaseChange(e.target.value as ResultsPhaseFilter)}
+          className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
+        >
+          {RESULTS_PHASE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-slate-400">
+        Usuario
+        <select
+          value={userFilter}
+          onChange={(e) => onUserChange(e.target.value)}
+          className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
+        >
+          <option value="all">Todos</option>
+          {uniqueUsers.map((u) => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-slate-400">
+        Partido
+        <select
+          value={matchFilter}
+          onChange={(e) => onMatchChange(e.target.value)}
+          className="max-w-xs rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
+        >
+          <option value="all">Todos</option>
+          {uniqueMatches.map((m) => {
+            const [id, label] = m.split("::");
+            return (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            );
+          })}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-slate-400">
+        Fecha
+        <input
+          type="date"
+          value={dateFilter}
+          onChange={(e) => onDateChange(e.target.value)}
+          className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
+        />
+      </label>
+      <button
+        type="button"
+        onClick={onClear}
+        className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-slate-200"
+      >
+        Limpiar
+      </button>
     </div>
   );
 }

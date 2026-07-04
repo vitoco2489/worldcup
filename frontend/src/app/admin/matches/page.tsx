@@ -15,6 +15,11 @@ import {
   knockoutMissingPenalties,
   needsPenaltyInput,
 } from "@/lib/matchScore";
+import {
+  matchPassesPhaseFilter,
+  RESULTS_PHASE_OPTIONS,
+  type ResultsPhaseFilter,
+} from "@/lib/matchPhase";
 
 type RowState = "idle" | "edited" | "saved" | "error";
 type MatchDraft = {
@@ -35,6 +40,7 @@ export default function AdminMatchesPage() {
   const [drafts, setDrafts] = useState<Record<string, MatchDraft>>({});
   const [finishedTables, setFinishedTables] = useState<FinishedMatchTable[]>([]);
   const [filter, setFilter] = useState<"all" | "pending" | "finished">("all");
+  const [finishedPhaseFilter, setFinishedPhaseFilter] = useState<ResultsPhaseFilter>("octavos");
   const [loading, setLoading] = useState(false);
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const { effectiveNowMs } = useEffectiveNow();
@@ -272,6 +278,11 @@ export default function AdminMatchesPage() {
     [filter, matches],
   );
 
+  const filteredFinishedTables = useMemo(
+    () => finishedTables.filter((fm) => matchPassesPhaseFilter(fm, finishedPhaseFilter)),
+    [finishedTables, finishedPhaseFilter],
+  );
+
   if (!me) {
     return <div className="min-h-screen bg-pitch px-4 py-8 text-slate-300">Cargando…</div>;
   }
@@ -472,12 +483,30 @@ export default function AdminMatchesPage() {
       </div>
 
       <section className="mt-8 space-y-3">
-        <h2 className="text-lg font-semibold">Partidos finalizados</h2>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-lg font-semibold">Partidos finalizados</h2>
+          <label className="flex flex-col gap-1 text-xs text-slate-400">
+            Fase
+            <select
+              value={finishedPhaseFilter}
+              onChange={(e) => setFinishedPhaseFilter(e.target.value as ResultsPhaseFilter)}
+              className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
+            >
+              {RESULTS_PHASE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         {finishedTables.length === 0 ? (
           <p className="text-sm text-slate-400">Aún no hay partidos finalizados.</p>
+        ) : filteredFinishedTables.length === 0 ? (
+          <p className="text-sm text-slate-400">No hay partidos finalizados en esta fase.</p>
         ) : (
           <div className="space-y-4">
-            {finishedTables.map((fm) => (
+            {filteredFinishedTables.map((fm) => (
               <div key={fm.match_id} className="rounded-lg border border-slate-700 bg-card">
                 <div className="flex items-center justify-between border-b border-slate-700 px-3 py-2">
                   <p className="text-sm font-semibold">

@@ -203,6 +203,9 @@ class FinishedMatchTable(BaseModel):
     score_away: int
     penalty_score_home: int | None = None
     penalty_score_away: int | None = None
+    match_number: int | None = None
+    round: str | None = None
+    group_name: str | None = None
     rows: list[FinishedMatchBetRow]
 
 
