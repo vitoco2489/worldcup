@@ -373,7 +373,7 @@ export default function AdminPage() {
   async function reResolveBets() {
     if (
       !window.confirm(
-        "¿Recalcular todos los puntos usando solo el marcador a los 120 minutos? Los penales no cambian home/empate/visitante.",
+        "¿Recalcular todos los puntos? Grupos usan el marcador al 90'; desde 16avos se usa el marcador a los 120' (penales no cuentan).",
       )
     ) {
       return;
@@ -594,11 +594,11 @@ export default function AdminPage() {
               onClick={() => void reResolveBets()}
               className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-60"
             >
-              {isLoading("re_resolve_bets") ? "Recalculando…" : "Recalcular puntos (120')"}
+              {isLoading("re_resolve_bets") ? "Recalculando…" : "Recalcular puntos"}
             </button>
           </div>
           <p className="text-xs text-slate-500">
-            Usa recalcular si hubo empates a penales: los puntos usan el marcador a los 120 minutos, no la tanda.
+            Grupos: marcador al 90&apos;. Desde 16avos: marcador a los 120&apos; (penales no cuentan para puntos).
           </p>
         </section>
 

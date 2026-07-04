@@ -398,8 +398,13 @@ export function Dashboard() {
           <span className="font-semibold text-sky-50">5 minutos antes</span> del pitido inicial.
         </p>
         <p>
-          ⚽ El resultado válido es el marcador al minuto{" "}
+          ⚽ <span className="font-semibold text-sky-50">Fase de grupos:</span> resultado válido al minuto{" "}
           <span className="font-semibold text-sky-50">90</span> (tiempo reglamentario — sin prórroga ni penales).
+        </p>
+        <p>
+          ⚽ <span className="font-semibold text-sky-50">Desde 16avos en adelante:</span> se considera el marcador a los{" "}
+          <span className="font-semibold text-sky-50">120 minutos</span> (incluye alargue si hay empate en el 90).
+          Los penales no cuentan para puntos.
         </p>
       </div>
 
@@ -532,7 +537,8 @@ export function Dashboard() {
                   <li>+2 → marcador exacto</li>
                   <li>Máximo: 5 puntos por partido</li>
                   <li className="pt-1 text-sky-200/80">Cierre de apuestas: 5 min antes del pitido</li>
-                  <li className="text-sky-200/80">Resultado: marcador a los 90 min (sin alargue ni penales)</li>
+                  <li className="text-sky-200/80">Grupos: marcador al 90&apos; (sin alargue ni penales)</li>
+                  <li className="text-sky-200/80">16avos en adelante: marcador a los 120&apos;; penales no cuentan</li>
                 </ul>
               </div>
               {communityInProgress.length === 0 ? (

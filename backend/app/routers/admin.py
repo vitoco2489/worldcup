@@ -254,7 +254,7 @@ def re_resolve_bets(
     db.commit()
     return ReResolveBetsResponse(
         updated=updated,
-        message="Bet points recalculated from 120-minute scores",
+        message="Bet points recalculated (90' groups / 120' knockout, no penalties)",
     )
 
 

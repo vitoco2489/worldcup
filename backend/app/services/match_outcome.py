@@ -40,7 +40,7 @@ def match_winner_team(match: Match) -> str | None:
 
 
 def match_betting_outcome(match: Match) -> str | None:
-    """Pool points use the 120-minute score only; penalties do not change home/draw/away."""
+    """Pool points from stored score: 90' in groups, 120' in knockout; penalties never affect outcome."""
     if match.score_home is None or match.score_away is None:
         return None
     if match.score_home > match.score_away:

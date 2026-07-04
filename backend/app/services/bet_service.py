@@ -52,7 +52,7 @@ def resolve_bet(bet: Bet, match: Match, *, now: datetime | None = None) -> bool:
 
 
 def re_resolve_all_finished_bets(db: Session) -> int:
-    """Recalculate points for every bet on matches with a final 120-minute score."""
+    """Recalculate points for every bet on matches with a final score."""
     updated = 0
     matches = db.scalars(
         select(Match).where(Match.score_home.is_not(None), Match.score_away.is_not(None))
