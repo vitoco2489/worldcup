@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import type {
   AdminManualBetResponse,
@@ -68,6 +68,35 @@ function predictionLabel(prediction: "home" | "away" | "draw", match: Match | nu
   if (prediction === "home") return match?.team_home ?? "Local";
   if (prediction === "away") return match?.team_away ?? "Visitante";
   return "Empate";
+}
+
+function AdminCollapsibleSection({
+  title,
+  subtitle,
+  children,
+  borderClass = "border-slate-700",
+  titleClass = "text-slate-100",
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  borderClass?: string;
+  titleClass?: string;
+}) {
+  return (
+    <details className={`group rounded-xl border bg-card ${borderClass}`}>
+      <summary className="cursor-pointer list-none px-4 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className={`font-semibold ${titleClass}`}>{title}</p>
+            {subtitle ? <p className="mt-1 text-xs text-slate-400">{subtitle}</p> : null}
+          </div>
+          <span className="shrink-0 text-xs text-slate-500 transition-transform group-open:rotate-180">▼</span>
+        </div>
+      </summary>
+      <div className="space-y-3 border-t border-slate-800 px-4 py-4">{children}</div>
+    </details>
+  );
 }
 
 export default function AdminPage() {
@@ -552,143 +581,25 @@ export default function AdminPage() {
       </header>
 
       <div className="space-y-6">
-        <section className="rounded-xl border border-amber-500/40 bg-card p-4 space-y-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="font-semibold text-amber-200">Mensaje WhatsApp — apuestas pendientes</p>
-              <p className="mt-1 text-xs text-slate-400">
-                Genera un texto para copiar y enviar por WhatsApp a quienes no han apostado en partidos
-                próximos (elige la ventana de tiempo).
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <label className="flex items-center gap-2 text-xs text-slate-400">
-                Ventana
-                <select
-                  value={whatsappWindowHours}
-                  onChange={(e) => {
-                    const h = Number(e.target.value);
-                    setWhatsappWindowHours(h);
-                    void loadWhatsappReminder(h);
-                  }}
-                  className="rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-200"
-                >
-                  {WHATSAPP_WINDOW_OPTIONS.map((o) => (
-                    <option key={o.hours} value={o.hours}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="button"
-                disabled={loadingWhatsapp}
-                onClick={() => void loadWhatsappReminder(whatsappWindowHours)}
-                className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-60"
-              >
-                {loadingWhatsapp ? "Actualizando…" : "Actualizar"}
-              </button>
-              <button
-                type="button"
-                disabled={!whatsappReminder?.message}
-                onClick={() => void copyWhatsappMessage()}
-                className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
-              >
-                Copiar mensaje
-              </button>
-            </div>
-          </div>
-
-          {whatsappReminder ? (
-            <>
-              <ul className="text-xs text-slate-400">
-                <li>
-                  Ventana: {whatsappReminder.window_label}
-                  {whatsappReminder.urgent_matches.length > 0 ? (
-                    <>
-                      {" · "}
-                      {whatsappReminder.urgent_matches.length} partido
-                      {whatsappReminder.urgent_matches.length === 1 ? "" : "s"}
-                      {" · "}
-                      {whatsappReminder.users_missing.length} sin apostar
-                    </>
-                  ) : null}
-                </li>
-              </ul>
-              <textarea
-                readOnly
-                value={whatsappReminder.message}
-                rows={Math.min(16, Math.max(6, whatsappReminder.message.split("\n").length + 1))}
-                className="w-full resize-y rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 font-mono text-xs leading-relaxed text-slate-200"
-                onFocus={(e) => e.target.select()}
-              />
-            </>
-          ) : (
-            <p className="text-sm text-slate-500">{loadingWhatsapp ? "Generando mensaje…" : "Sin datos."}</p>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-sky-500/35 bg-card p-4 space-y-3">
-          <p className="font-semibold text-sky-200">Invitados (control de acceso)</p>
-          <p className="text-xs text-slate-400">
-            Solo los correos de esta lista pueden iniciar sesión. Agrega el Gmail de cada amigo antes de compartir el link.
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <label className="flex flex-1 flex-col gap-1 text-xs text-slate-400">
-              Correo Gmail
-              <input
-                type="email"
-                value={newInviteEmail}
-                onChange={(e) => setNewInviteEmail(e.target.value)}
-                placeholder="amigo@gmail.com"
-                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="flex flex-1 flex-col gap-1 text-xs text-slate-400">
-              Nota (opcional)
-              <input
-                type="text"
-                value={newInviteNote}
-                onChange={(e) => setNewInviteNote(e.target.value)}
-                placeholder="Marco"
-                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-              />
-            </label>
+        <section className="rounded-xl border border-primary/30 bg-card/50 p-4 space-y-3">
+          <p className="text-base font-semibold text-primary">Gestor de partidos</p>
+          <p className="text-sm text-slate-400">Administra marcadores, penales y estados en la página dedicada.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/matches" className="inline-flex rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-pitch">
+              Abrir gestor de partidos
+            </Link>
             <button
               type="button"
-              disabled={isLoading("add_allowed")}
-              onClick={() => void addAllowedEmail()}
-              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              disabled={isLoading("re_resolve_bets")}
+              onClick={() => void reResolveBets()}
+              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-60"
             >
-              {isLoading("add_allowed") ? "Agregando…" : "Agregar invitado"}
+              {isLoading("re_resolve_bets") ? "Recalculando…" : "Recalcular puntos (120')"}
             </button>
           </div>
-          <ul className="divide-y divide-slate-800 rounded-lg border border-slate-700">
-            {allowedEmails.length === 0 ? (
-              <li className="px-3 py-3 text-sm text-slate-500">Sin invitados cargados.</li>
-            ) : (
-              allowedEmails.map((row) => (
-                <li key={row.email} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-100">{row.email}</p>
-                    {row.note ? <p className="text-xs text-slate-500">{row.note}</p> : null}
-                  </div>
-                  {row.is_admin ? (
-                    <span className="shrink-0 text-xs text-slate-500">Admin</span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={isLoading("remove_allowed")}
-                      onClick={() => void removeAllowedEmail(row.email)}
-                      className="shrink-0 rounded border border-danger/40 px-2 py-1 text-xs text-danger hover:bg-danger/10"
-                    >
-                      Quitar
-                    </button>
-                  )}
-                </li>
-              ))
-            )}
-          </ul>
+          <p className="text-xs text-slate-500">
+            Usa recalcular si hubo empates a penales: los puntos usan el marcador a los 120 minutos, no la tanda.
+          </p>
         </section>
 
         <section className="rounded-xl border border-violet-500/35 bg-card p-4 space-y-3">
@@ -823,226 +734,338 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-emerald-500/35 bg-card p-4 space-y-3">
-          <p className="font-semibold text-emerald-200">Cuotas de entrada</p>
-          <p className="text-xs text-slate-400">
-            Marca quién pagó la cuota de la polla. Se refleja en la columna &quot;Cuota&quot; del ranking.
-          </p>
-          <ul className="divide-y divide-slate-800 rounded-lg border border-slate-700">
-            {adminUsers.length === 0 ? (
-              <li className="px-3 py-3 text-sm text-slate-500">Sin usuarios registrados.</li>
-            ) : (
-              adminUsers.map((user) => (
-                <li key={user.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-100">{user.name}</p>
-                    <p className="truncate text-xs text-slate-500">{user.email}</p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={togglingEntryUserId === user.id}
-                    onClick={() => void toggleEntryPaid(user)}
-                    className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
-                      user.entry_paid
-                        ? "border border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
-                        : "border border-slate-600 bg-slate-900 text-slate-400 hover:border-slate-500"
-                    }`}
-                  >
-                    {togglingEntryUserId === user.id ? "…" : user.entry_paid ? "✓ Pagó" : "Pendiente"}
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
+        <div className="space-y-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Más herramientas</p>
 
-        <section className="rounded-xl border border-primary/30 bg-card/50 p-4 space-y-3">
-          <p className="text-base font-semibold text-primary">Gestor de partidos</p>
-          <p className="text-sm text-slate-400">Administra marcadores, penales y estados en la página dedicada.</p>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/admin/matches" className="inline-flex rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-pitch">
-              Abrir gestor de partidos
-            </Link>
-            <button
-              type="button"
-              disabled={isLoading("re_resolve_bets")}
-              onClick={() => void reResolveBets()}
-              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-60"
-            >
-              {isLoading("re_resolve_bets") ? "Recalculando…" : "Recalcular puntos (120')"}
-            </button>
-          </div>
-          <p className="text-xs text-slate-500">
-            Usa recalcular si hubo empates a penales: los puntos usan el marcador a los 120 minutos, no la tanda.
-          </p>
-        </section>
-
-        <section className="rounded-xl border border-primary/30 bg-card p-4 space-y-3">
-          <p className="font-semibold text-primary">Importar calendario del Mundial</p>
-          <p className="text-xs text-slate-400">
-            Pega el JSON completo ({`{ "name", "matches": [ team1, team2, date, time, group?, num? ] }`}). Los
-            placeholders de eliminatoria (1A, W73…) se completan solos cuando terminen los grupos y partidos previos.
-          </p>
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-slate-300">
-            <p className="font-semibold text-amber-200">¿Cruces de 16avos mal?</p>
-            <p className="mt-1 text-slate-400">
-              Usa el calendario oficial (openfootball/FIFA): p. ej. partido 89 = W74 vs W77, 90 = W73 vs W75, etc.
-            </p>
-            <button
-              type="button"
-              disabled={isLoading("repair_schedule")}
-              onClick={() => void repairSchedule()}
-              className="mt-2 rounded-lg border border-amber-500/50 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/10 disabled:opacity-60"
-            >
-              {isLoading("repair_schedule") ? "Reparando…" : "Reparar cruces de eliminatoria"}
-            </button>
-          </div>
-          <textarea
-            className="h-40 w-full rounded-lg border border-slate-600 bg-slate-900 p-2 font-mono text-xs"
-            placeholder='{"name":"World Cup 2026","matches":[...]}'
-            value={scheduleJson}
-            onChange={(e) => setScheduleJson(e.target.value)}
-          />
-          <button
-            disabled={isLoading("load_schedule") || !scheduleJson.trim()}
-            onClick={() => void loadSchedule()}
-            className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-pitch disabled:opacity-60"
+          <AdminCollapsibleSection
+            title="Mensaje WhatsApp — apuestas pendientes"
+            subtitle="Genera un texto para copiar y enviar por WhatsApp a quienes no han apostado en partidos próximos."
+            borderClass="border-amber-500/40"
+            titleClass="text-amber-200"
           >
-            {isLoading("load_schedule") ? "Importando…" : "Importar calendario"}
-          </button>
-        </section>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 text-xs text-slate-400">
+                Ventana
+                <select
+                  value={whatsappWindowHours}
+                  onChange={(e) => {
+                    const h = Number(e.target.value);
+                    setWhatsappWindowHours(h);
+                    void loadWhatsappReminder(h);
+                  }}
+                  className="rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-200"
+                >
+                  {WHATSAPP_WINDOW_OPTIONS.map((o) => (
+                    <option key={o.hours} value={o.hours}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                disabled={loadingWhatsapp}
+                onClick={() => void loadWhatsappReminder(whatsappWindowHours)}
+                className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+              >
+                {loadingWhatsapp ? "Actualizando…" : "Actualizar"}
+              </button>
+              <button
+                type="button"
+                disabled={!whatsappReminder?.message}
+                onClick={() => void copyWhatsappMessage()}
+                className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+              >
+                Copiar mensaje
+              </button>
+            </div>
+            {whatsappReminder ? (
+              <>
+                <ul className="text-xs text-slate-400">
+                  <li>
+                    Ventana: {whatsappReminder.window_label}
+                    {whatsappReminder.urgent_matches.length > 0 ? (
+                      <>
+                        {" · "}
+                        {whatsappReminder.urgent_matches.length} partido
+                        {whatsappReminder.urgent_matches.length === 1 ? "" : "s"}
+                        {" · "}
+                        {whatsappReminder.users_missing.length} sin apostar
+                      </>
+                    ) : null}
+                  </li>
+                </ul>
+                <textarea
+                  readOnly
+                  value={whatsappReminder.message}
+                  rows={Math.min(16, Math.max(6, whatsappReminder.message.split("\n").length + 1))}
+                  className="w-full resize-y rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 font-mono text-xs leading-relaxed text-slate-200"
+                  onFocus={(e) => e.target.select()}
+                />
+              </>
+            ) : (
+              <p className="text-sm text-slate-500">{loadingWhatsapp ? "Generando mensaje…" : "Sin datos."}</p>
+            )}
+          </AdminCollapsibleSection>
 
-        <section className="rounded-xl border border-slate-700 bg-card p-4 space-y-3">
-          <p className="font-semibold">Cargar partidos (simple)</p>
-          <textarea
-            className="h-28 w-full rounded-lg border border-slate-600 bg-slate-900 p-2 font-mono text-xs"
-            value={jsonMatches}
-            onChange={(e) => setJsonMatches(e.target.value)}
-          />
-          <div className="flex flex-wrap gap-2">
-            <button disabled={isLoading("load_json")} onClick={() => void loadJsonMatches()} className="rounded-lg bg-slate-700 px-3 py-2 text-sm">
-              {isLoading("load_json") ? "Cargando..." : "Cargar JSON"}
-            </button>
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              disabled={isLoading("load_csv")}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                void loadCsv(f ?? null);
-                e.target.value = "";
-              }}
-              className="text-sm text-slate-300"
+          <AdminCollapsibleSection
+            title="Invitados (control de acceso)"
+            subtitle="Solo los correos de esta lista pueden iniciar sesión."
+            borderClass="border-sky-500/35"
+            titleClass="text-sky-200"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <label className="flex flex-1 flex-col gap-1 text-xs text-slate-400">
+                Correo Gmail
+                <input
+                  type="email"
+                  value={newInviteEmail}
+                  onChange={(e) => setNewInviteEmail(e.target.value)}
+                  placeholder="amigo@gmail.com"
+                  className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="flex flex-1 flex-col gap-1 text-xs text-slate-400">
+                Nota (opcional)
+                <input
+                  type="text"
+                  value={newInviteNote}
+                  onChange={(e) => setNewInviteNote(e.target.value)}
+                  placeholder="Marco"
+                  className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={isLoading("add_allowed")}
+                onClick={() => void addAllowedEmail()}
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {isLoading("add_allowed") ? "Agregando…" : "Agregar invitado"}
+              </button>
+            </div>
+            <ul className="divide-y divide-slate-800 rounded-lg border border-slate-700">
+              {allowedEmails.length === 0 ? (
+                <li className="px-3 py-3 text-sm text-slate-500">Sin invitados cargados.</li>
+              ) : (
+                allowedEmails.map((row) => (
+                  <li key={row.email} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-100">{row.email}</p>
+                      {row.note ? <p className="text-xs text-slate-500">{row.note}</p> : null}
+                    </div>
+                    {row.is_admin ? (
+                      <span className="shrink-0 text-xs text-slate-500">Admin</span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isLoading("remove_allowed")}
+                        onClick={() => void removeAllowedEmail(row.email)}
+                        className="shrink-0 rounded border border-danger/40 px-2 py-1 text-xs text-danger hover:bg-danger/10"
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </li>
+                ))
+              )}
+            </ul>
+          </AdminCollapsibleSection>
+
+          <AdminCollapsibleSection
+            title="Cuotas de entrada"
+            subtitle="Marca quién pagó la cuota de la polla."
+            borderClass="border-emerald-500/35"
+            titleClass="text-emerald-200"
+          >
+            <ul className="divide-y divide-slate-800 rounded-lg border border-slate-700">
+              {adminUsers.length === 0 ? (
+                <li className="px-3 py-3 text-sm text-slate-500">Sin usuarios registrados.</li>
+              ) : (
+                adminUsers.map((user) => (
+                  <li key={user.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-100">{user.name}</p>
+                      <p className="truncate text-xs text-slate-500">{user.email}</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={togglingEntryUserId === user.id}
+                      onClick={() => void toggleEntryPaid(user)}
+                      className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                        user.entry_paid
+                          ? "border border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                          : "border border-slate-600 bg-slate-900 text-slate-400 hover:border-slate-500"
+                      }`}
+                    >
+                      {togglingEntryUserId === user.id ? "…" : user.entry_paid ? "✓ Pagó" : "Pendiente"}
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          </AdminCollapsibleSection>
+
+          <AdminCollapsibleSection
+            title="Importar calendario del Mundial"
+            subtitle="Pega el JSON completo del calendario FIFA."
+            borderClass="border-primary/30"
+            titleClass="text-primary"
+          >
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-slate-300">
+              <p className="font-semibold text-amber-200">¿Cruces de 16avos mal?</p>
+              <p className="mt-1 text-slate-400">
+                Usa el calendario oficial (openfootball/FIFA): p. ej. partido 89 = W74 vs W77, 90 = W73 vs W75, etc.
+              </p>
+              <button
+                type="button"
+                disabled={isLoading("repair_schedule")}
+                onClick={() => void repairSchedule()}
+                className="mt-2 rounded-lg border border-amber-500/50 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/10 disabled:opacity-60"
+              >
+                {isLoading("repair_schedule") ? "Reparando…" : "Reparar cruces de eliminatoria"}
+              </button>
+            </div>
+            <textarea
+              className="h-40 w-full rounded-lg border border-slate-600 bg-slate-900 p-2 font-mono text-xs"
+              placeholder='{"name":"World Cup 2026","matches":[...]}'
+              value={scheduleJson}
+              onChange={(e) => setScheduleJson(e.target.value)}
             />
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-amber-500/25 bg-card p-4 space-y-3">
-          <p className="font-semibold text-amber-200">Hora simulada</p>
-          <input
-            className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 font-mono text-sm"
-            value={simTimeIso}
-            onChange={(e) => setSimTimeIso(e.target.value)}
-            placeholder="2026-06-10T19:57:00Z"
-          />
-          <div className="flex flex-wrap gap-2">
-            <button disabled={isLoading("simulate_time")} onClick={() => void setSimulatedClock()} className="rounded-lg bg-amber-600/80 px-3 py-2 text-sm">
-              {isLoading("simulate_time") ? "Guardando..." : "Fijar hora simulada"}
-            </button>
-            <button disabled={isLoading("reset_time")} onClick={() => void resetSimulatedClock()} className="rounded-lg border border-slate-500 bg-slate-800 px-3 py-2 text-sm">
-              {isLoading("reset_time") ? "Guardando..." : "Restablecer hora"}
-            </button>
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-slate-700 bg-card p-4 space-y-3">
-          <p className="font-semibold">Gestión del pozo</p>
-          {pool ? <p className="text-sm text-slate-400">Pozo actual: {pool.pool_total_usd} USD</p> : null}
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min={0}
-              value={poolInput}
-              onChange={(e) => setPoolInput(e.target.value)}
-              className="flex-1 rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-            />
-            <button disabled={isLoading("save_pool")} onClick={() => void savePool()} className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-pitch">
-              {isLoading("save_pool") ? "Guardando..." : "Actualizar pozo"}
-            </button>
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-slate-700 bg-card p-4 space-y-3">
-          <p className="font-semibold">Herramientas de reinicio</p>
-          <div className="flex flex-wrap gap-2">
             <button
-              disabled={isLoading("reset_sim")}
-              onClick={() => void resetSimulation()}
-              className="rounded-lg border border-slate-500 bg-slate-800 px-3 py-2 text-sm"
+              disabled={isLoading("load_schedule") || !scheduleJson.trim()}
+              onClick={() => void loadSchedule()}
+              className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-pitch disabled:opacity-60"
             >
-              {isLoading("reset_sim") ? "Guardando..." : "Reiniciar simulación"}
+              {isLoading("load_schedule") ? "Importando…" : "Importar calendario"}
             </button>
-          </div>
-          <div className="rounded-lg border border-danger/40 bg-danger/10 p-3">
-            <p className="text-sm font-semibold text-danger">Zona peligrosa</p>
-            <p className="mt-1 text-xs text-slate-300">
-              Estas acciones eliminan datos permanentemente. Usa las cadenas de confirmación exactas.
-            </p>
+          </AdminCollapsibleSection>
 
-            <div className="mt-3 space-y-4">
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-slate-200">Opción A — resetear partidos a programados (conservar partidos)</p>
-                <input
-                  className="w-full rounded-lg border border-danger/40 bg-slate-950 px-3 py-2 text-sm"
-                  placeholder="CONFIRM RESET"
-                  value={resetConfirmText}
-                  onChange={(e) => setResetConfirmText(e.target.value)}
-                />
-                <button
-                  disabled={isLoading("reset_all_data")}
-                  onClick={() => void resetAllData()}
-                  className="w-full rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {isLoading("reset_all_data") ? "Reseteando..." : "Resetear todos los datos"}
-                </button>
-              </div>
+          <AdminCollapsibleSection title="Cargar partidos (simple)" subtitle="JSON o CSV de partidos sueltos.">
+            <textarea
+              className="h-28 w-full rounded-lg border border-slate-600 bg-slate-900 p-2 font-mono text-xs"
+              value={jsonMatches}
+              onChange={(e) => setJsonMatches(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-2">
+              <button disabled={isLoading("load_json")} onClick={() => void loadJsonMatches()} className="rounded-lg bg-slate-700 px-3 py-2 text-sm">
+                {isLoading("load_json") ? "Cargando..." : "Cargar JSON"}
+              </button>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                disabled={isLoading("load_csv")}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  void loadCsv(f ?? null);
+                  e.target.value = "";
+                }}
+                className="text-sm text-slate-300"
+              />
+            </div>
+          </AdminCollapsibleSection>
 
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-slate-200">Opción B — eliminar solo apuestas</p>
-                <input
-                  className="w-full rounded-lg border border-danger/40 bg-slate-950 px-3 py-2 text-sm"
-                  placeholder="DELETE BETS"
-                  value={deleteBetsConfirmText}
-                  onChange={(e) => setDeleteBetsConfirmText(e.target.value)}
-                />
-                <button
-                  disabled={isLoading("reset_bets")}
-                  onClick={() => void resetBetsOnly()}
-                  className="w-full rounded-lg border border-danger/40 bg-danger/20 px-3 py-2 text-sm font-semibold text-danger disabled:opacity-60"
-                >
-                  {isLoading("reset_bets") ? "Eliminando..." : "Eliminar solo apuestas"}
-                </button>
-              </div>
+          <AdminCollapsibleSection title="Hora simulada" subtitle="Avanza o fija el reloj del torneo para pruebas." borderClass="border-amber-500/25" titleClass="text-amber-200">
+            <input
+              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 font-mono text-sm"
+              value={simTimeIso}
+              onChange={(e) => setSimTimeIso(e.target.value)}
+              placeholder="2026-06-10T19:57:00Z"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button disabled={isLoading("simulate_time")} onClick={() => void setSimulatedClock()} className="rounded-lg bg-amber-600/80 px-3 py-2 text-sm">
+                {isLoading("simulate_time") ? "Guardando..." : "Fijar hora simulada"}
+              </button>
+              <button disabled={isLoading("reset_time")} onClick={() => void resetSimulatedClock()} className="rounded-lg border border-slate-500 bg-slate-800 px-3 py-2 text-sm">
+                {isLoading("reset_time") ? "Guardando..." : "Restablecer hora"}
+              </button>
+            </div>
+          </AdminCollapsibleSection>
 
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-slate-200">Opción C — eliminar partidos + apuestas (borrado de prueba)</p>
-                <input
-                  className="w-full rounded-lg border border-danger/40 bg-slate-950 px-3 py-2 text-sm"
-                  placeholder="DELETE ALL"
-                  value={deleteAllConfirmText}
-                  onChange={(e) => setDeleteAllConfirmText(e.target.value)}
-                />
-                <button
-                  disabled={isLoading("reset_matches")}
-                  onClick={() => void resetMatchesAndBets()}
-                  className="w-full rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {isLoading("reset_matches") ? "Eliminando..." : "Eliminar partidos + apuestas"}
-                </button>
+          <AdminCollapsibleSection title="Gestión del pozo" subtitle="Total del pozo en USD.">
+            {pool ? <p className="text-sm text-slate-400">Pozo actual: {pool.pool_total_usd} USD</p> : null}
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={0}
+                value={poolInput}
+                onChange={(e) => setPoolInput(e.target.value)}
+                className="flex-1 rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+              />
+              <button disabled={isLoading("save_pool")} onClick={() => void savePool()} className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-pitch">
+                {isLoading("save_pool") ? "Guardando..." : "Actualizar pozo"}
+              </button>
+            </div>
+          </AdminCollapsibleSection>
+
+          <AdminCollapsibleSection title="Herramientas de reinicio" subtitle="Simulación y zona peligrosa.">
+            <div className="flex flex-wrap gap-2">
+              <button
+                disabled={isLoading("reset_sim")}
+                onClick={() => void resetSimulation()}
+                className="rounded-lg border border-slate-500 bg-slate-800 px-3 py-2 text-sm"
+              >
+                {isLoading("reset_sim") ? "Guardando..." : "Reiniciar simulación"}
+              </button>
+            </div>
+            <div className="rounded-lg border border-danger/40 bg-danger/10 p-3">
+              <p className="text-sm font-semibold text-danger">Zona peligrosa</p>
+              <p className="mt-1 text-xs text-slate-300">
+                Estas acciones eliminan datos permanentemente. Usa las cadenas de confirmación exactas.
+              </p>
+              <div className="mt-3 space-y-4">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-200">Opción A — resetear partidos a programados (conservar partidos)</p>
+                  <input
+                    className="w-full rounded-lg border border-danger/40 bg-slate-950 px-3 py-2 text-sm"
+                    placeholder="CONFIRM RESET"
+                    value={resetConfirmText}
+                    onChange={(e) => setResetConfirmText(e.target.value)}
+                  />
+                  <button
+                    disabled={isLoading("reset_all_data")}
+                    onClick={() => void resetAllData()}
+                    className="w-full rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {isLoading("reset_all_data") ? "Reseteando..." : "Resetear todos los datos"}
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-200">Opción B — eliminar solo apuestas</p>
+                  <input
+                    className="w-full rounded-lg border border-danger/40 bg-slate-950 px-3 py-2 text-sm"
+                    placeholder="DELETE BETS"
+                    value={deleteBetsConfirmText}
+                    onChange={(e) => setDeleteBetsConfirmText(e.target.value)}
+                  />
+                  <button
+                    disabled={isLoading("reset_bets")}
+                    onClick={() => void resetBetsOnly()}
+                    className="w-full rounded-lg border border-danger/40 bg-danger/20 px-3 py-2 text-sm font-semibold text-danger disabled:opacity-60"
+                  >
+                    {isLoading("reset_bets") ? "Eliminando..." : "Eliminar solo apuestas"}
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-200">Opción C — eliminar partidos + apuestas (borrado de prueba)</p>
+                  <input
+                    className="w-full rounded-lg border border-danger/40 bg-slate-950 px-3 py-2 text-sm"
+                    placeholder="DELETE ALL"
+                    value={deleteAllConfirmText}
+                    onChange={(e) => setDeleteAllConfirmText(e.target.value)}
+                  />
+                  <button
+                    disabled={isLoading("reset_matches")}
+                    onClick={() => void resetMatchesAndBets()}
+                    className="w-full rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {isLoading("reset_matches") ? "Eliminando..." : "Eliminar partidos + apuestas"}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </AdminCollapsibleSection>
+        </div>
       </div>
     </div>
   );

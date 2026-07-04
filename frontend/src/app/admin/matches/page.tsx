@@ -39,7 +39,7 @@ export default function AdminMatchesPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [drafts, setDrafts] = useState<Record<string, MatchDraft>>({});
   const [finishedTables, setFinishedTables] = useState<FinishedMatchTable[]>([]);
-  const [filter, setFilter] = useState<"all" | "pending" | "finished">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "finished">("pending");
   const [finishedPhaseFilter, setFinishedPhaseFilter] = useState<ResultsPhaseFilter>("octavos");
   const [loading, setLoading] = useState(false);
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
