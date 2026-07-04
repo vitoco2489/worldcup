@@ -41,6 +41,11 @@ class RepairScheduleResponse(BaseModel):
     message: str
 
 
+class ReResolveBetsResponse(BaseModel):
+    updated: int
+    message: str
+
+
 class CsvRowError(BaseModel):
     row: int
     message: str

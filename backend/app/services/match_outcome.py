@@ -39,17 +39,19 @@ def match_winner_team(match: Match) -> str | None:
     return match.team_away
 
 
-def match_outcome(match: Match) -> str | None:
-    """Betting outcome: home, draw, or away."""
+def match_betting_outcome(match: Match) -> str | None:
+    """Pool points use the 120-minute score only; penalties do not change home/draw/away."""
     if match.score_home is None or match.score_away is None:
         return None
     if match.score_home > match.score_away:
         return "home"
     if match.score_away > match.score_home:
         return "away"
-    if is_knockout_match(match) and has_penalty_winner(match):
-        return "home" if match.penalty_score_home > match.penalty_score_away else "away"
     return "draw"
+
+
+def match_outcome(match: Match) -> str | None:
+    return match_betting_outcome(match)
 
 
 def validate_penalty_input(

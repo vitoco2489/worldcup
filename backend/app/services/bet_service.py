@@ -4,13 +4,14 @@ import uuid
 from datetime import datetime
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.bet import Bet
 from app.models.match import Match
 from app.repositories import bet_repo, match_repo
 from app.schemas.bet import BetPublic
-from app.services.match_outcome import match_outcome
+from app.services.match_outcome import match_betting_outcome
 from app.utils.time import get_current_time, is_bet_editable
 
 CORRECT_POINTS = 3
@@ -18,7 +19,7 @@ EXACT_SCORE_BONUS = 2
 
 
 def match_result_prediction(match: Match) -> str | None:
-    return match_outcome(match)
+    return match_betting_outcome(match)
 
 
 def is_exact_score_hit(bet: Bet, match: Match) -> bool:
@@ -48,6 +49,21 @@ def resolve_bet(bet: Bet, match: Match, *, now: datetime | None = None) -> bool:
     bet.resolved = True
     bet.locked = True
     return True
+
+
+def re_resolve_all_finished_bets(db: Session) -> int:
+    """Recalculate points for every bet on matches with a final 120-minute score."""
+    updated = 0
+    matches = db.scalars(
+        select(Match).where(Match.score_home.is_not(None), Match.score_away.is_not(None))
+    ).all()
+    for m in matches:
+        m.status = "finished"
+        for bet in db.scalars(select(Bet).where(Bet.match_id == m.id)).all():
+            if resolve_bet(bet, m):
+                updated += 1
+    db.flush()
+    return updated
 
 
 def ensure_bet_lock_state(bet: Bet, match: Match, *, db: Session, now: datetime | None = None) -> None:

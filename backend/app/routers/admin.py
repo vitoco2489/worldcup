@@ -30,6 +30,7 @@ from app.schemas.admin import (
     ScheduleLoadResponse,
     PoolUpdateRequest,
     RepairScheduleResponse,
+    ReResolveBetsResponse,
     ResetAllDataRequest,
     ResetAllDataResponse,
     ResetBetsRequest,
@@ -242,6 +243,19 @@ def update_match_results_bulk(
         updated += 1
     db.commit()
     return MatchResultsBulkUpdateResponse(updated=updated, message="Bulk match results saved")
+
+
+@router.post("/re-resolve-bets", response_model=ReResolveBetsResponse)
+def re_resolve_bets(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    updated = bet_service.re_resolve_all_finished_bets(db)
+    db.commit()
+    return ReResolveBetsResponse(
+        updated=updated,
+        message="Bet points recalculated from 120-minute scores",
+    )
 
 
 @router.get("/finished-matches-table", response_model=list[FinishedMatchTable])
