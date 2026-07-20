@@ -11,6 +11,7 @@ const TOURNAMENT_OWNER_EMAIL = "vitoco2489@gmail.com";
 type AccessState =
   | { status: "checking" }
   | { status: "open" }
+  | { status: "owner"; winners: LeaderboardRow[] }
   | { status: "locked"; winners: LeaderboardRow[] };
 
 export function TournamentFinishedGate({ children }: { children: ReactNode }) {
@@ -25,13 +26,13 @@ export function TournamentFinishedGate({ children }: { children: ReactNode }) {
     setAccess({ status: "checking" });
     try {
       const me = await fetchMe();
-      if (me.email.trim().toLowerCase() === TOURNAMENT_OWNER_EMAIL) {
-        setAccess({ status: "open" });
-        return;
-      }
-
       const leaderboard = await apiFetch<LeaderboardRow[]>("/leaderboard");
-      setAccess({ status: "locked", winners: leaderboard.slice(0, 3) });
+      const winners = leaderboard.slice(0, 3);
+      setAccess(
+        me.email.trim().toLowerCase() === TOURNAMENT_OWNER_EMAIL
+          ? { status: "owner", winners }
+          : { status: "locked", winners },
+      );
     } catch {
       // Dashboard/pages handle an invalid or expired session by returning to sign-in.
       setAccess({ status: "open" });
@@ -99,7 +100,17 @@ export function TournamentFinishedGate({ children }: { children: ReactNode }) {
           </p>
         )}
 
-        <p className="mt-6 text-xs text-slate-500">La navegación de la aplicación está cerrada.</p>
+        {access.status === "owner" ? (
+          <button
+            type="button"
+            onClick={() => setAccess({ status: "open" })}
+            className="mt-6 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-pitch transition-colors hover:bg-primary/90"
+          >
+            Continuar al panel
+          </button>
+        ) : (
+          <p className="mt-6 text-xs text-slate-500">La navegación de la aplicación está cerrada.</p>
+        )}
       </section>
     </main>
   );
