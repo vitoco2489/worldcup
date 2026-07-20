@@ -1,4 +1,5 @@
 const TOKEN_KEY = "wc_pool_token";
+export const AUTH_SESSION_CHANGED_EVENT = "vitobet:session-changed";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -9,6 +10,7 @@ export function setToken(token: string | null) {
   if (typeof window === "undefined") return;
   if (token) localStorage.setItem(TOKEN_KEY, token);
   else localStorage.removeItem(TOKEN_KEY);
+  window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT));
 }
 
 export const AUTH_LOGOUT_EVENT = "vitobet:logout";

@@ -3,6 +3,7 @@
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
+import { TournamentFinishedGate } from "@/components/TournamentFinishedGate";
 
 export function Providers({ children }: { children: ReactNode }) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
@@ -16,7 +17,7 @@ export function Providers({ children }: { children: ReactNode }) {
   }
   return (
     <GoogleOAuthProvider clientId={clientId}>
-      {children}
+      <TournamentFinishedGate>{children}</TournamentFinishedGate>
       <Toaster
         position="top-center"
         richColors
